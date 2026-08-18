@@ -1,0 +1,1508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>To Do List</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="icon" type="image/svg+xml" href="image/favicon.svg">
+<style>
+  :root{
+    --bg:#EEF1EC;
+    --surface:#FFFFFF;
+    --surface-2:#F7F8F4;
+    --ink:#1F3733;
+    --ink-soft:#5A6E69;
+    --ink-faint:#8C9C97;
+    --line:#CFD8CB;
+    --line-soft:#E1E7DD;
+    --accent:#C1801E;
+    --accent-ink:#5C3B0A;
+    --accent-soft:#F3E0BB;
+    --pending:#4C6B8A;
+    --pending-bg:#E4EBF1;
+    --inprogress:#A9741F;
+    --inprogress-bg:#F3E7CF;
+    --onhold:#AE4A2E;
+    --onhold-bg:#F4DFD7;
+    --done:#3C7A56;
+    --done-bg:#DDEBE2;
+    --danger:#AE4A2E;
+    --shadow:0 10px 30px -12px rgba(31,55,51,0.28);
+    --shadow-sm:0 2px 8px -2px rgba(31,55,51,0.18);
+    --radius:10px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    background-image:
+      radial-gradient(circle at 1px 1px, rgba(31,55,51,0.05) 1px, transparent 0);
+    background-size:22px 22px;
+    color:var(--ink);
+    font-family:'IBM Plex Sans', sans-serif;
+    min-height:100vh;
+    padding-bottom:120px;
+  }
+  .wrap{
+    max-width:920px;
+    margin:0 auto;
+    padding:36px 24px 24px;
+  }
+
+  /* ---------- Header ---------- */
+  header.app-header{
+    display:flex;
+    align-items:flex-end;
+    justify-content:space-between;
+    gap:20px;
+    margin-bottom:22px;
+    flex-wrap:wrap;
+  }
+  .title-block h1{
+    font-family:'Fraunces', serif;
+    font-weight:700;
+    font-size:40px;
+    letter-spacing:-0.01em;
+    margin:0 0 2px;
+    color:var(--ink);
+  }
+  .title-block .sub{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px;
+    letter-spacing:0.08em;
+    text-transform:uppercase;
+    color:var(--ink-faint);
+  }
+  .folder-controls{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    flex-wrap:wrap;
+  }
+  .folder-status{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px;
+    color:var(--ink-soft);
+    display:flex;
+    align-items:center;
+    gap:6px;
+  }
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--ink-faint);display:inline-block;}
+  .dot.on{background:var(--done);}
+  .dot.off{background:var(--onhold);}
+
+  .btn{
+    font-family:'IBM Plex Sans', sans-serif;
+    font-size:13px;
+    font-weight:600;
+    border-radius:7px;
+    border:1px solid var(--line);
+    background:var(--surface);
+    color:var(--ink);
+    padding:9px 14px;
+    cursor:pointer;
+    transition:transform .12s ease, box-shadow .12s ease, background .12s ease;
+  }
+  .btn:hover{background:var(--surface-2); box-shadow:var(--shadow-sm);}
+  .btn:active{transform:translateY(1px);}
+  .btn.primary{background:var(--ink); color:#fff; border-color:var(--ink);}
+  .btn.primary:hover{background:#15302c;}
+  .btn.ghost{background:transparent; border-color:transparent; color:var(--ink-soft);}
+  .btn.ghost:hover{background:var(--surface-2); color:var(--ink);}
+  .btn:disabled{opacity:.5; cursor:not-allowed; box-shadow:none;}
+
+  /* ---------- Stats bar ---------- */
+  .stats-bar{
+    display:flex;
+    gap:18px;
+    flex-wrap:wrap;
+    align-items:center;
+    padding:14px 18px;
+    background:var(--surface);
+    border:1px solid var(--line-soft);
+    border-radius:var(--radius);
+    margin-bottom:20px;
+    box-shadow:var(--shadow-sm);
+  }
+  .stat{
+    display:flex;
+    flex-direction:column;
+    gap:1px;
+  }
+  .stat .num{font-family:'Fraunces', serif; font-weight:600; font-size:22px; line-height:1;}
+  .stat .lbl{font-family:'IBM Plex Mono', monospace; font-size:10.5px; text-transform:uppercase; letter-spacing:.07em; color:var(--ink-faint);}
+  .stats-divider{width:1px; height:28px; background:var(--line-soft);}
+  .toolbar-right{margin-left:auto; display:flex; gap:8px; flex-wrap:wrap;}
+  .search-input, .filter-select{
+    font-family:'IBM Plex Sans', sans-serif;
+    font-size:13px;
+    padding:8px 10px;
+    border-radius:7px;
+    border:1px solid var(--line);
+    background:var(--surface-2);
+    color:var(--ink);
+    outline:none;
+  }
+  .search-input:focus, .filter-select:focus{border-color:var(--accent);}
+
+  /* ---------- Empty state ---------- */
+  .empty-state{
+    text-align:center;
+    padding:70px 20px;
+    color:var(--ink-soft);
+  }
+  .empty-state .glyph{
+    width:56px;height:56px;margin:0 auto 16px;
+    border:1.5px dashed var(--line);
+    border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+    font-family:'Fraunces', serif; font-size:26px; color:var(--ink-faint);
+  }
+  .empty-state h3{font-family:'Fraunces', serif; font-size:20px; margin:0 0 6px; color:var(--ink);}
+  .empty-state p{font-size:13.5px; max-width:360px; margin:0 auto; line-height:1.5;}
+
+  /* ---------- Tabs (folder-tab styling) ---------- */
+  .tabs-region{margin-bottom:6px;}
+  .tab-bar{
+    display:flex;
+    align-items:flex-end;
+    gap:4px;
+    overflow-x:auto;
+    scrollbar-width:none;
+  }
+  .tab-bar::-webkit-scrollbar{display:none;}
+  .tab-pager{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    margin-bottom:8px;
+  }
+  .tab-pager .page-label{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    color:var(--ink-faint);
+    letter-spacing:.06em;
+  }
+  .tab-btn{
+    position:relative;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12.5px;
+    font-weight:500;
+    letter-spacing:.02em;
+    color:var(--ink-soft);
+    background:var(--surface-2);
+    border:1px solid var(--line-soft);
+    border-bottom:none;
+    padding:9px 18px 9px 22px;
+    cursor:pointer;
+    white-space:nowrap;
+    clip-path:polygon(10px 0, 100% 0, 100% 100%, 0 100%, 0 10px);
+    margin-right:-6px;
+    transition:background .12s ease, color .12s ease;
+  }
+  .tab-btn .badge{
+    display:inline-block;
+    margin-left:7px;
+    font-size:10px;
+    background:var(--line-soft);
+    color:var(--ink-soft);
+    border-radius:20px;
+    padding:1px 6px;
+  }
+  .tab-btn.active{
+    background:var(--surface);
+    color:var(--ink);
+    font-weight:600;
+    z-index:2;
+    border-color:var(--line);
+  }
+  .tab-btn.active .badge{background:var(--accent-soft); color:var(--accent-ink);}
+  .tab-panel{
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:0 var(--radius) var(--radius) var(--radius);
+    padding:18px;
+    box-shadow:var(--shadow-sm);
+  }
+
+  .pending-line{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-bottom:14px;
+    flex-wrap:wrap;
+    gap:8px;
+  }
+  .pending-count{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px;
+    color:var(--pending);
+    background:var(--pending-bg);
+    padding:5px 10px;
+    border-radius:20px;
+  }
+  .file-name-tag{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    color:var(--ink-faint);
+  }
+
+  /* ---------- Task list (index card items) ---------- */
+  .task-list{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:10px;}
+  .task-item{
+    position:relative;
+    display:flex;
+    align-items:center;
+    gap:14px;
+    padding:13px 16px 13px 30px;
+    background:var(--surface-2);
+    border:1px solid var(--line-soft);
+    border-radius:8px;
+    cursor:pointer;
+    transition:transform .1s ease, box-shadow .1s ease, border-color .1s ease;
+  }
+  .task-item:hover{
+    transform:translateY(-1px);
+    box-shadow:var(--shadow-sm);
+    border-color:var(--line);
+  }
+  .task-item::before, .task-item::after{
+    content:"";
+    position:absolute;
+    left:12px;
+    width:5px;height:5px;
+    border-radius:50%;
+    background:var(--bg);
+    border:1px solid var(--line);
+  }
+  .task-item::before{top:10px;}
+  .task-item::after{bottom:10px;}
+  .task-item .ti-title{
+    font-family:'Fraunces', serif;
+    font-weight:600;
+    font-size:16px;
+    color:var(--ink);
+    flex:1;
+    min-width:120px;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+  .task-item .ti-project{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    color:var(--ink-faint);
+  }
+  .task-item .ti-date{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11.5px;
+    color:var(--ink-soft);
+    white-space:nowrap;
+  }
+  .status-tag{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:10.5px;
+    font-weight:600;
+    text-transform:uppercase;
+    letter-spacing:.05em;
+    padding:4px 9px;
+    border-radius:20px;
+    white-space:nowrap;
+  }
+  .status-Pending{color:var(--pending); background:var(--pending-bg);}
+  .status-Inprogress{color:var(--inprogress); background:var(--inprogress-bg);}
+  .status-Onhold{color:var(--onhold); background:var(--onhold-bg);}
+  .status-Done{color:var(--done); background:var(--done-bg);}
+
+  .no-tasks{
+    text-align:center;
+    padding:32px 10px;
+    color:var(--ink-faint);
+    font-size:13.5px;
+  }
+
+  /* ---------- Floating add button ---------- */
+  .fab{
+    position:fixed;
+    right:32px;
+    bottom:32px;
+    width:64px;
+    height:64px;
+    border-radius:50%;
+    background:var(--accent);
+    color:#fff;
+    border:3px solid var(--surface);
+    box-shadow:var(--shadow);
+    font-size:32px;
+    line-height:1;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    cursor:pointer;
+    transition:transform .15s ease, background .15s ease;
+    z-index:50;
+  }
+  .fab:hover{transform:scale(1.06); background:#AD7119;}
+  .fab:active{transform:scale(0.96);}
+
+  /* ---------- Modal ---------- */
+  .modal-overlay{
+    position:fixed; inset:0;
+    background:rgba(20,32,29,0.45);
+    display:none;
+    align-items:center;
+    justify-content:center;
+    padding:24px;
+    z-index:100;
+  }
+  .modal-overlay.open{display:flex;}
+  .modal-card{
+    position:relative;
+    width:100%;
+    max-width:560px;
+    max-height:88vh;
+    overflow-y:auto;
+    background:var(--surface);
+    border-radius:12px;
+    box-shadow:var(--shadow);
+    padding:26px 28px 22px 40px;
+    animation:pop .16s ease;
+  }
+  @keyframes pop{from{opacity:0; transform:scale(.97) translateY(6px);} to{opacity:1; transform:scale(1) translateY(0);}}
+  .modal-card::before{
+    content:"";
+    position:absolute;
+    left:16px; top:24px; bottom:24px;
+    width:1px;
+    background:repeating-linear-gradient(to bottom, var(--line) 0 6px, transparent 6px 12px);
+  }
+  .modal-card::after{
+    content:"";
+    position:absolute;
+    left:9px; top:20px;
+    width:8px;height:8px;
+    border-radius:50%;
+    background:var(--bg);
+    border:1px solid var(--line);
+    box-shadow: 0 40px 0 var(--bg), 0 40px 0 1px var(--line), 0 80px 0 var(--bg), 0 80px 0 1px var(--line);
+  }
+  .modal-title{
+    font-family:'Fraunces', serif;
+    font-weight:700;
+    font-size:22px;
+    margin:0 0 4px;
+  }
+  .modal-sub{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    color:var(--ink-faint);
+    margin-bottom:18px;
+    text-transform:uppercase;
+    letter-spacing:.06em;
+  }
+  .form-row{
+    display:flex;
+    gap:12px;
+    margin-bottom:14px;
+  }
+  .form-field{display:flex; flex-direction:column; gap:5px;}
+  .form-field.col-75{flex:0 0 75%;}
+  .form-field.col-25{flex:1;}
+  .form-field.col-33{flex:1;}
+  .form-field.full{width:100%;}
+  .form-field label{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:10.5px;
+    text-transform:uppercase;
+    letter-spacing:.06em;
+    color:var(--ink-soft);
+  }
+  .form-field label .req{color:var(--onhold); margin-left:2px;}
+  .form-field input[type=text],
+  .form-field input[type=date],
+  .form-field input[type=datetime-local],
+  .form-field select,
+  .form-field textarea{
+    font-family:'IBM Plex Sans', sans-serif;
+    font-size:13.5px;
+    padding:9px 10px;
+    border-radius:7px;
+    border:1px solid var(--line);
+    background:var(--surface-2);
+    color:var(--ink);
+    outline:none;
+    width:100%;
+  }
+  .form-field input:disabled, .form-field textarea:disabled{
+    background:var(--bg); color:var(--ink-soft); cursor:not-allowed;
+  }
+  .form-field input:focus, .form-field select:focus, .form-field textarea:focus{
+    border-color:var(--accent);
+  }
+  .form-field textarea{resize:vertical; min-height:90px; font-family:'IBM Plex Sans', sans-serif;}
+  .field-error{font-size:11px; color:var(--danger); display:none;}
+  .field-error.show{display:block;}
+  .modal-actions{
+    display:flex;
+    justify-content:flex-end;
+    gap:10px;
+    margin-top:6px;
+    padding-top:14px;
+    border-top:1px solid var(--line-soft);
+  }
+  .modal-close-x{
+    position:absolute;
+    top:14px; right:14px;
+    width:26px;height:26px;
+    border-radius:50%;
+    border:none;
+    background:transparent;
+    color:var(--ink-faint);
+    font-size:16px;
+    cursor:pointer;
+  }
+  .modal-close-x:hover{background:var(--surface-2); color:var(--ink);}
+
+  .onhold-remark-wrap{display:none;}
+  .onhold-remark-wrap.show{display:flex;}
+
+  /* ---------- Image thumbnails ---------- */
+  input[type=file]{
+    font-family:'IBM Plex Sans', sans-serif;
+    font-size:12.5px;
+    color:var(--ink-soft);
+  }
+  .thumb-grid{
+    display:flex;
+    flex-wrap:wrap;
+    gap:12px;
+    margin-top:2px;
+  }
+  .thumb-grid:not(:empty){margin-bottom:10px;}
+  .thumb-cell{position:relative; width:76px;}
+  .thumb-cell img{
+    width:76px; height:76px;
+    object-fit:cover;
+    border-radius:7px;
+    border:1px solid var(--line);
+    cursor:zoom-in;
+    display:block;
+    background:var(--bg);
+  }
+  .thumb-missing{
+    width:76px; height:76px;
+    border-radius:7px;
+    border:1px dashed var(--line);
+    display:flex; align-items:center; justify-content:center;
+    font-size:9.5px; color:var(--ink-faint);
+    text-align:center; padding:4px;
+  }
+  .thumb-remove{
+    position:absolute; top:-7px; right:-7px;
+    width:18px; height:18px; border-radius:50%;
+    background:var(--ink); color:#fff; border:2px solid var(--surface);
+    font-size:10px; line-height:1; cursor:pointer; padding:0;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .thumb-remove:hover{background:var(--danger);}
+  .thumb-name{
+    display:block; font-size:9px; color:var(--ink-faint);
+    margin-top:3px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+    font-family:'IBM Plex Mono', monospace;
+  }
+  .thumb-loading, .thumb-empty{font-size:12px; color:var(--ink-faint);}
+  .ti-images{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    color:var(--ink-faint);
+    white-space:nowrap;
+  }
+
+  .toast{
+    position:fixed;
+    left:50%;
+    bottom:28px;
+    transform:translateX(-50%) translateY(20px);
+    background:var(--ink);
+    color:#fff;
+    font-size:13px;
+    padding:10px 18px;
+    border-radius:8px;
+    box-shadow:var(--shadow);
+    opacity:0;
+    pointer-events:none;
+    transition:all .2s ease;
+    z-index:200;
+    font-family:'IBM Plex Sans', sans-serif;
+  }
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+  .toast.error{background:var(--danger);}
+
+  .unsupported-banner{
+    background:var(--onhold-bg);
+    color:var(--onhold);
+    border:1px solid var(--onhold);
+    border-radius:var(--radius);
+    padding:14px 16px;
+    font-size:13px;
+    margin-bottom:20px;
+    line-height:1.5;
+  }
+
+  @media (max-width:560px){
+    .wrap{padding:22px 14px 14px;}
+    .title-block h1{font-size:30px;}
+    .form-row{flex-direction:column;}
+    .form-field.col-75, .form-field.col-25, .form-field.col-33{flex:1 1 100%;}
+    .modal-card{padding:22px 18px 18px 32px;}
+    .fab{right:20px; bottom:20px; width:58px; height:58px; font-size:28px;}
+    .toolbar-right{width:100%;}
+    .search-input{flex:1;}
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="app-header">
+    <div class="title-block">
+      <h1>To Do List</h1>
+      <div class="sub">a running ledger of tasks, kept in plain JSON</div>
+    </div>
+    <div class="folder-controls">
+      <span class="folder-status"><span class="dot off" id="folderDot"></span><span id="folderStatusText">No folder connected</span></span>
+      <button class="btn" id="connectFolderBtn" type="button">Connect folder</button>
+      <button class="btn ghost" id="refreshBtn" type="button" title="Reload files from folder">↻ Refresh</button>
+    </div>
+  </header>
+
+  <div id="unsupportedBanner" class="unsupported-banner" style="display:none;">
+    This browser doesn't support reading and writing files directly (the File System Access API). Please open this page in a recent version of Chrome or Edge, served over <code>http://</code>/<code>https://</code> (or opened via a local server) so tasks can be saved as JSON files next to this HTML file.
+  </div>
+
+  <div id="statsBar" class="stats-bar" style="display:none;">
+    <div class="stat"><span class="num" id="statTotal">0</span><span class="lbl">Total</span></div>
+    <div class="stats-divider"></div>
+    <div class="stat"><span class="num" id="statPending">0</span><span class="lbl">Pending</span></div>
+    <div class="stats-divider"></div>
+    <div class="stat"><span class="num" id="statProgress">0</span><span class="lbl">In progress</span></div>
+    <div class="stats-divider"></div>
+    <div class="stat"><span class="num" id="statOnhold">0</span><span class="lbl">On hold</span></div>
+    <div class="stats-divider"></div>
+    <div class="stat"><span class="num" id="statDone">0</span><span class="lbl">Done</span></div>
+    <div class="toolbar-right">
+      <input type="text" class="search-input" id="searchInput" placeholder="Search title…">
+      <select class="filter-select" id="statusFilter">
+        <option value="">All statuses</option>
+        <option value="Pending">Pending</option>
+        <option value="Inprogress">In progress</option>
+        <option value="Onhold">On hold</option>
+        <option value="Done">Done</option>
+      </select>
+    </div>
+  </div>
+
+  <div id="emptyState" class="empty-state">
+    <div class="glyph">＋</div>
+    <h3>Nothing here yet</h3>
+    <p>Connect the folder this file lives in, then use the plus button to add your first task. Tasks are saved as JSON files right beside this page.</p>
+  </div>
+
+  <div id="tabsRegion" class="tabs-region" style="display:none;">
+    <div class="tab-pager" id="tabPager" style="display:none;">
+      <button class="btn ghost" id="tabPagePrev" type="button">‹ Prev</button>
+      <span class="page-label" id="tabPageLabel"></span>
+      <button class="btn ghost" id="tabPageNext" type="button">Next ›</button>
+    </div>
+    <div class="tab-bar" id="tabBar"></div>
+    <div class="tab-panel" id="tabPanel">
+      <div class="pending-line">
+        <span class="pending-count" id="pendingCount">0 pending</span>
+        <span class="file-name-tag" id="activeFileName"></span>
+      </div>
+      <ul class="task-list" id="taskList"></ul>
+    </div>
+  </div>
+</div>
+
+<button class="fab" id="fabAdd" type="button" title="Add task">+</button>
+
+<!-- Add Task Modal -->
+<div class="modal-overlay" id="addModalOverlay">
+  <div class="modal-card">
+    <button class="modal-close-x" id="addModalClose" type="button">✕</button>
+    <div class="modal-title">New task</div>
+    <div class="modal-sub">Fill in what you know — only the title is required</div>
+    <form id="addForm" novalidate>
+      <div class="form-row">
+        <div class="form-field col-75">
+          <label>Title<span class="req">*</span></label>
+          <input type="text" id="f_title" maxlength="200" required>
+          <span class="field-error" id="err_title">Title is required.</span>
+        </div>
+        <div class="form-field col-25">
+          <label>Project</label>
+          <input type="text" id="f_project" maxlength="120">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-field col-33">
+          <label>Create date<span class="req">*</span></label>
+          <input type="text" id="f_createDate" disabled>
+        </div>
+        <div class="form-field col-33">
+          <label>Target date</label>
+          <input type="date" id="f_targetDate">
+        </div>
+        <div class="form-field col-33">
+          <label>Completed date</label>
+          <input type="date" id="f_completedDate">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-field full">
+          <label>Description</label>
+          <textarea id="f_description" maxlength="4000"></textarea>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-field full">
+          <label>Images</label>
+          <div class="thumb-grid" id="f_imagesPreview"></div>
+          <input type="file" id="f_images" accept="image/*" multiple>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn" id="addCancelBtn">Cancel</button>
+        <button type="submit" class="btn primary" id="addSaveBtn">Save task</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Edit / Detail Task Modal -->
+<div class="modal-overlay" id="editModalOverlay">
+  <div class="modal-card">
+    <button class="modal-close-x" id="editModalClose" type="button">✕</button>
+    <div class="modal-title" id="editModalTitle">Task detail</div>
+    <div class="modal-sub" id="editModalSub">View and update status</div>
+    <form id="editForm" novalidate>
+      <div class="form-row">
+        <div class="form-field col-75">
+          <label>Title</label>
+          <input type="text" id="e_title" disabled>
+        </div>
+        <div class="form-field col-25">
+          <label>Project</label>
+          <input type="text" id="e_project" disabled>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-field col-33">
+          <label>Create date</label>
+          <input type="text" id="e_createDate" disabled>
+        </div>
+        <div class="form-field col-33">
+          <label>Target date</label>
+          <input type="text" id="e_targetDate" disabled>
+        </div>
+        <div class="form-field col-33">
+          <label>Completed date</label>
+          <input type="date" id="e_completedDate">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-field full">
+          <label>Description</label>
+          <textarea id="e_description" disabled></textarea>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-field full">
+          <label>Images</label>
+          <div class="thumb-grid" id="e_imagesGrid"></div>
+          <input type="file" id="e_imagesInput" accept="image/*" multiple>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-field col-33">
+          <label>Status<span class="req">*</span></label>
+          <select id="e_status">
+            <option value="Pending">Pending</option>
+            <option value="Inprogress">In progress</option>
+            <option value="Onhold">On hold</option>
+            <option value="Done">Done</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row onhold-remark-wrap" id="onholdWrap">
+        <div class="form-field full">
+          <label>On hold remark<span class="req">*</span></label>
+          <textarea id="e_onholdRemark" maxlength="1000"></textarea>
+          <span class="field-error" id="err_onhold">A remark is required while status is On hold.</span>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn" id="deleteTaskBtn" style="margin-right:auto; color:var(--danger); border-color:var(--onhold-bg);">Delete</button>
+        <button type="button" class="btn" id="editCancelBtn">Cancel</button>
+        <button type="submit" class="btn primary" id="editSaveBtn">Save changes</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* =========================================================
+     Constants & state
+  ==========================================================*/
+  const FILE_PATTERN = /^tasks(\d+)\.json$/i;
+  const MAX_PER_FILE = 10;
+  const TABS_PER_PAGE = 5;
+
+  const state = {
+    dirHandle: null,
+    files: [],          // [{ index, name, handle, tasks: [] }]
+    activeFileIndex: 0,  // position within state.files array (not the number in filename)
+    tabPage: 0,
+    search: "",
+    statusFilter: ""
+  };
+
+  let editingContext = null; // { fileArrIndex, taskIndex }
+
+  /* =========================================================
+     Small utilities
+  ==========================================================*/
+  function uid(){
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c=>{
+      const r = Math.random()*16|0, v = c==='x'?r:(r&0x3|0x8);
+      return v.toString(16);
+    });
+  }
+  function pad(n){ return n<10 ? '0'+n : ''+n; }
+  function nowDisplay(){
+    const d = new Date();
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+  function nowISO(){ return new Date().toISOString(); }
+  function displayDateTime(iso){
+    if(!iso) return '—';
+    const d = new Date(iso);
+    if(isNaN(d)) return iso;
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+  function displayDate(dstr){
+    if(!dstr) return '—';
+    return dstr;
+  }
+  function escapeHtml(s){
+    return (s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+  function fileTimestamp(){
+    const d = new Date();
+    return `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+  }
+  function sanitizeForFilename(s){
+    const cleaned = (s||'').trim().replace(/[^a-zA-Z0-9-_ ]+/g,'').trim().replace(/\s+/g,'-');
+    return cleaned || 'NoProject';
+  }
+  function extFromFile(file){
+    const m = (file.name||'').match(/\.[a-zA-Z0-9]+$/);
+    if(m) return m[0].toLowerCase();
+    const map = {'image/png':'.png','image/jpeg':'.jpg','image/jpg':'.jpg','image/gif':'.gif','image/webp':'.webp','image/svg+xml':'.svg','image/bmp':'.bmp'};
+    return map[file.type] || '.img';
+  }
+  async function ensureUniqueFilename(name){
+    let candidate = name;
+    let n = 1;
+    while(true){
+      try{
+        await state.dirHandle.getFileHandle(candidate, { create:false });
+        n++;
+        const dot = name.lastIndexOf('.');
+        const stem = dot>-1 ? name.slice(0,dot) : name;
+        const ext = dot>-1 ? name.slice(dot) : '';
+        candidate = `${stem}-${n}${ext}`;
+      }catch(e){
+        return candidate;
+      }
+    }
+  }
+  // Filename scheme: Project_UploadDateTime_TaskId(_index for multiple uploads).ext
+  async function saveImageToFolder(file, project, taskId, idx){
+    const ts = fileTimestamp();
+    const ext = extFromFile(file);
+    const base = `${sanitizeForFilename(project)}_${ts}_${taskId}_${idx}${ext}`;
+    const filename = await ensureUniqueFilename(base);
+    const fh = await state.dirHandle.getFileHandle(filename, { create:true });
+    const writable = await fh.createWritable();
+    await writable.write(file);
+    await writable.close();
+    return filename;
+  }
+
+  function showToast(msg, isError){
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.toggle('error', !!isError);
+    t.classList.add('show');
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(()=>t.classList.remove('show'), 2600);
+  }
+
+  /* =========================================================
+     IndexedDB — persist the chosen folder handle between visits
+  ==========================================================*/
+  const IDB_NAME = 'todoAppFS';
+  const IDB_STORE = 'handles';
+  function idbOpen(){
+    return new Promise((resolve, reject)=>{
+      const req = indexedDB.open(IDB_NAME, 1);
+      req.onupgradeneeded = ()=> req.result.createObjectStore(IDB_STORE);
+      req.onsuccess = ()=> resolve(req.result);
+      req.onerror = ()=> reject(req.error);
+    });
+  }
+  async function idbSet(key, val){
+    const db = await idbOpen();
+    return new Promise((resolve, reject)=>{
+      const tx = db.transaction(IDB_STORE, 'readwrite');
+      tx.objectStore(IDB_STORE).put(val, key);
+      tx.oncomplete = ()=>resolve();
+      tx.onerror = ()=>reject(tx.error);
+    });
+  }
+  async function idbGet(key){
+    const db = await idbOpen();
+    return new Promise((resolve, reject)=>{
+      const tx = db.transaction(IDB_STORE, 'readonly');
+      const req = tx.objectStore(IDB_STORE).get(key);
+      req.onsuccess = ()=>resolve(req.result);
+      req.onerror = ()=>reject(req.error);
+    });
+  }
+
+  /* =========================================================
+     File System Access helpers
+  ==========================================================*/
+  const fsSupported = 'showDirectoryPicker' in window;
+
+  async function verifyPermission(handle, forWrite){
+    const opts = forWrite ? { mode: 'readwrite' } : {};
+    if ((await handle.queryPermission(opts)) === 'granted') return true;
+    if ((await handle.requestPermission(opts)) === 'granted') return true;
+    return false;
+  }
+
+  async function pickFolder(){
+    if(!fsSupported){
+      showToast('This browser cannot access local folders. Use Chrome or Edge.', true);
+      return false;
+    }
+    try{
+      const handle = await window.showDirectoryPicker({ mode: 'readwrite' });
+      const ok = await verifyPermission(handle, true);
+      if(!ok){ showToast('Folder permission was not granted.', true); return false; }
+      state.dirHandle = handle;
+      await idbSet('rootDir', handle);
+      updateFolderStatus(true, handle.name);
+      await loadAllFiles();
+      return true;
+    }catch(e){
+      if(e.name !== 'AbortError') showToast('Could not open folder: ' + e.message, true);
+      return false;
+    }
+  }
+
+  async function tryRestoreFolder(){
+    if(!fsSupported) return false;
+    try{
+      const handle = await idbGet('rootDir');
+      if(!handle) return false;
+      const granted = await handle.queryPermission({ mode:'readwrite' });
+      if(granted === 'granted'){
+        state.dirHandle = handle;
+        updateFolderStatus(true, handle.name);
+        await loadAllFiles();
+        return true;
+      }else{
+        // Needs a user gesture to re-request; show a reconnect prompt.
+        updateFolderStatus(false, handle.name, true);
+        return false;
+      }
+    }catch(e){
+      return false;
+    }
+  }
+
+  function updateFolderStatus(connected, name, needsReconnect){
+    const dot = document.getElementById('folderDot');
+    const txt = document.getElementById('folderStatusText');
+    const btn = document.getElementById('connectFolderBtn');
+    if(connected){
+      dot.className = 'dot on';
+      txt.textContent = 'Connected: ' + name;
+      btn.textContent = 'Change folder';
+    }else if(needsReconnect){
+      dot.className = 'dot off';
+      txt.textContent = 'Reconnect needed: ' + name;
+      btn.textContent = 'Reconnect folder';
+    }else{
+      dot.className = 'dot off';
+      txt.textContent = 'No folder connected';
+      btn.textContent = 'Connect folder';
+    }
+  }
+
+  async function listTaskFileHandles(){
+    const results = [];
+    for await (const [name, handle] of state.dirHandle.entries()){
+      if(handle.kind === 'file'){
+        const m = name.match(FILE_PATTERN);
+        if(m){ results.push({ name, index: parseInt(m[1],10), handle }); }
+      }
+    }
+    results.sort((a,b)=>a.index-b.index);
+    return results;
+  }
+
+  async function readJSONFile(fileHandle){
+    try{
+      const file = await fileHandle.getFile();
+      const text = await file.text();
+      if(!text.trim()) return [];
+      const data = JSON.parse(text);
+      return Array.isArray(data) ? data : [];
+    }catch(e){
+      console.warn('Could not read/parse', fileHandle.name, e);
+      return [];
+    }
+  }
+
+  async function writeJSONFile(fileEntry){
+    const writable = await fileEntry.handle.createWritable();
+    await writable.write(JSON.stringify(fileEntry.tasks, null, 2));
+    await writable.close();
+  }
+
+  async function loadAllFiles(){
+    if(!state.dirHandle) return;
+    const handles = await listTaskFileHandles();
+    const files = [];
+    for(const h of handles){
+      const tasks = await readJSONFile(h.handle);
+      files.push({ index: h.index, name: h.name, handle: h.handle, tasks });
+    }
+    state.files = files;
+    if(state.activeFileIndex >= files.length) state.activeFileIndex = Math.max(0, files.length-1);
+    state.tabPage = 0;
+    renderAll();
+  }
+
+  async function ensureTargetFileForNewTask(){
+    // Find the file with the highest index; if it has < MAX_PER_FILE tasks, use it.
+    // Otherwise, create the next-numbered file.
+    if(state.files.length === 0){
+      const handle = await state.dirHandle.getFileHandle('tasks1.json', { create: true });
+      const entry = { index:1, name:'tasks1.json', handle, tasks: [] };
+      state.files.push(entry);
+      return entry;
+    }
+    const last = state.files[state.files.length-1];
+    if(last.tasks.length < MAX_PER_FILE) return last;
+    const nextIndex = last.index + 1;
+    const nextName = `tasks${nextIndex}.json`;
+    const handle = await state.dirHandle.getFileHandle(nextName, { create: true });
+    const entry = { index: nextIndex, name: nextName, handle, tasks: [] };
+    state.files.push(entry);
+    return entry;
+  }
+
+  /* =========================================================
+     Rendering
+  ==========================================================*/
+  function allTasksFlat(){
+    const out = [];
+    state.files.forEach((f, fi)=> f.tasks.forEach((t, ti)=> out.push({ task:t, fi, ti })));
+    return out;
+  }
+
+  function renderAll(){
+    renderStats();
+    renderEmptyOrTabs();
+    if(state.files.length){
+      renderTabs();
+      renderTaskList();
+    }
+  }
+
+  function renderStats(){
+    const flat = allTasksFlat();
+    const bar = document.getElementById('statsBar');
+    if(!flat.length && !state.files.length){ bar.style.display = 'none'; return; }
+    bar.style.display = state.files.length ? 'flex' : 'none';
+    const counts = { Pending:0, Inprogress:0, Onhold:0, Done:0 };
+    flat.forEach(({task})=>{ if(counts[task.status]!==undefined) counts[task.status]++; });
+    document.getElementById('statTotal').textContent = flat.length;
+    document.getElementById('statPending').textContent = counts.Pending;
+    document.getElementById('statProgress').textContent = counts.Inprogress;
+    document.getElementById('statOnhold').textContent = counts.Onhold;
+    document.getElementById('statDone').textContent = counts.Done;
+  }
+
+  function renderEmptyOrTabs(){
+    const empty = document.getElementById('emptyState');
+    const tabsRegion = document.getElementById('tabsRegion');
+    if(state.files.length === 0){
+      empty.style.display = 'block';
+      tabsRegion.style.display = 'none';
+    }else{
+      empty.style.display = 'none';
+      tabsRegion.style.display = 'block';
+    }
+  }
+
+  function renderTabs(){
+    const tabBar = document.getElementById('tabBar');
+    const pager = document.getElementById('tabPager');
+    const pageLabel = document.getElementById('tabPageLabel');
+    const totalPages = Math.max(1, Math.ceil(state.files.length / TABS_PER_PAGE));
+    if(state.tabPage > totalPages-1) state.tabPage = totalPages-1;
+    pager.style.display = state.files.length > TABS_PER_PAGE ? 'flex' : 'none';
+    pageLabel.textContent = `Page ${state.tabPage+1} of ${totalPages}`;
+    document.getElementById('tabPagePrev').disabled = state.tabPage === 0;
+    document.getElementById('tabPageNext').disabled = state.tabPage >= totalPages-1;
+
+    const start = state.tabPage * TABS_PER_PAGE;
+    const pageFiles = state.files.slice(start, start + TABS_PER_PAGE);
+
+    tabBar.innerHTML = '';
+    pageFiles.forEach((f, iLocal)=>{
+      const globalIdx = start + iLocal;
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'tab-btn' + (globalIdx === state.activeFileIndex ? ' active' : '');
+      const pendingInFile = f.tasks.filter(t=>t.status==='Pending').length;
+      btn.innerHTML = `Tab ${globalIdx+1}<span class="badge">${f.tasks.length}</span>`;
+      btn.title = f.name + (pendingInFile ? ` · ${pendingInFile} pending` : '');
+      btn.addEventListener('click', ()=>{
+        state.activeFileIndex = globalIdx;
+        renderTabs();
+        renderTaskList();
+      });
+      tabBar.appendChild(btn);
+    });
+  }
+
+  function taskMatchesFilters(task){
+    if(state.statusFilter && task.status !== state.statusFilter) return false;
+    if(state.search){
+      const q = state.search.toLowerCase();
+      if(!(task.title||'').toLowerCase().includes(q)) return false;
+    }
+    return true;
+  }
+
+  function renderTaskList(){
+    const listEl = document.getElementById('taskList');
+    const pendingCountEl = document.getElementById('pendingCount');
+    const fileNameEl = document.getElementById('activeFileName');
+    const file = state.files[state.activeFileIndex];
+    if(!file){ listEl.innerHTML=''; pendingCountEl.textContent='0 pending'; fileNameEl.textContent=''; return; }
+
+    fileNameEl.textContent = file.name;
+    const pendingInTab = file.tasks.filter(t=>t.status==='Pending').length;
+    pendingCountEl.textContent = `${pendingInTab} pending`;
+
+    const visibleTasks = file.tasks
+      .map((t, ti)=>({t, ti}))
+      .filter(({t})=>taskMatchesFilters(t));
+
+    if(visibleTasks.length === 0){
+      listEl.innerHTML = `<li class="no-tasks">No tasks match here.</li>`;
+      return;
+    }
+	const STATUS_ORDER = {
+		'Inprogress': 0,
+		'Pending': 1,
+		'Onhold': 2,
+		'Done': 3,
+	};
+		
+	const sortedTasks = [...visibleTasks].sort(
+	(a, b) => {
+		return STATUS_ORDER[a.t.status] - STATUS_ORDER[b.t.status]
+	});
+	
+	console.log('Pending TASKS');
+	console.log(sortedTasks.map(({t, ti}) => {
+		if(t.status !== 'Done') {
+			return '\n' + t.title;
+		}
+	}).join(''));
+
+    listEl.innerHTML = sortedTasks.map(({t, ti})=>{
+      const statusClass = 'status-' + (t.status || 'Pending');
+      const statusLabel = t.status === 'Inprogress' ? 'In progress' : (t.status === 'Onhold' ? 'On hold' : (t.status || 'Pending'));
+      const imgCount = (t.images||[]).length;
+      return `
+        <li class="task-item" data-ti="${ti}">
+          <span class="ti-title">${escapeHtml(t.title)}</span>
+          ${t.project ? `<span class="ti-project">${escapeHtml(t.project)}</span>` : ''}
+          ${imgCount ? `<span class="ti-images">📷 ${imgCount}</span>` : ''}
+          <span class="ti-date">${displayDateTime(t.createDate)}</span>
+          <span class="status-tag ${statusClass}">${statusLabel}</span>
+        </li>`;
+    }).join('');
+
+    listEl.querySelectorAll('.task-item').forEach(el=>{
+      el.addEventListener('click', ()=>{
+        const ti = parseInt(el.getAttribute('data-ti'),10);
+        openEditModal(state.activeFileIndex, ti);
+      });
+    });
+  }
+
+  /* =========================================================
+     Add Task modal
+  ==========================================================*/
+  const addOverlay = document.getElementById('addModalOverlay');
+  const addForm = document.getElementById('addForm');
+  let pendingAddImages = []; // File objects queued for upload, written to disk on Save
+
+  function renderAddImagePreviews(){
+    const wrap = document.getElementById('f_imagesPreview');
+    wrap.innerHTML = '';
+    pendingAddImages.forEach((file, idx)=>{
+      const url = URL.createObjectURL(file);
+      const cell = document.createElement('div');
+      cell.className = 'thumb-cell';
+      cell.innerHTML = `
+        <img src="${url}" alt="${escapeHtml(file.name)}">
+        <button type="button" class="thumb-remove" data-idx="${idx}" title="Remove">✕</button>
+        <span class="thumb-name" title="${escapeHtml(file.name)}">${escapeHtml(file.name)}</span>`;
+      cell.querySelector('img').addEventListener('click', ()=>window.open(url, '_blank'));
+      cell.querySelector('.thumb-remove').addEventListener('click', ()=>{
+        pendingAddImages.splice(idx, 1);
+        renderAddImagePreviews();
+      });
+      wrap.appendChild(cell);
+    });
+  }
+
+  document.getElementById('f_images').addEventListener('change', (e)=>{
+    const files = Array.from(e.target.files || []);
+    pendingAddImages = pendingAddImages.concat(files);
+    e.target.value = '';
+    renderAddImagePreviews();
+  });
+
+  function openAddModal(){
+    addForm.reset();
+    document.getElementById('f_createDate').value = nowDisplay();
+    document.getElementById('err_title').classList.remove('show');
+    pendingAddImages = [];
+    renderAddImagePreviews();
+    addOverlay.classList.add('open');
+    setTimeout(()=>document.getElementById('f_title').focus(), 50);
+  }
+  function closeAddModal(){ addOverlay.classList.remove('open'); }
+
+  document.getElementById('addModalClose').addEventListener('click', closeAddModal);
+  document.getElementById('addCancelBtn').addEventListener('click', closeAddModal);
+  addOverlay.addEventListener('click', (e)=>{ if(e.target === addOverlay) closeAddModal(); });
+
+  addForm.addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    const title = document.getElementById('f_title').value.trim();
+    const errEl = document.getElementById('err_title');
+    if(!title){ errEl.classList.add('show'); return; }
+    errEl.classList.remove('show');
+
+    if(!state.dirHandle){
+      const ok = await pickFolder();
+      if(!ok) return;
+    }
+
+    const saveBtn = document.getElementById('addSaveBtn');
+    saveBtn.disabled = true; saveBtn.textContent = 'Saving…';
+    try{
+      const projectVal = document.getElementById('f_project').value.trim();
+      const task = {
+        id: uid(),
+        title,
+        project: projectVal,
+        createDate: nowISO(),
+        targetDate: document.getElementById('f_targetDate').value || '',
+        completedDate: document.getElementById('f_completedDate').value || '',
+        description: document.getElementById('f_description').value.trim(),
+        status: 'Pending',
+        onholdRemark: '',
+        images: []
+      };
+      if(pendingAddImages.length){
+        for(let i=0;i<pendingAddImages.length;i++){
+          const filename = await saveImageToFolder(pendingAddImages[i], projectVal, task.id, i+1);
+          task.images.push(filename);
+        }
+      }
+      const fileEntry = await ensureTargetFileForNewTask();
+      fileEntry.tasks.push(task);
+      await writeJSONFile(fileEntry);
+
+      state.activeFileIndex = state.files.findIndex(f=>f.index===fileEntry.index);
+      const totalPages = Math.max(1, Math.ceil(state.files.length / TABS_PER_PAGE));
+      state.tabPage = Math.min(totalPages-1, Math.floor(state.activeFileIndex / TABS_PER_PAGE));
+
+      pendingAddImages = [];
+      renderAll();
+      closeAddModal();
+      showToast('Task saved to ' + fileEntry.name);
+    }catch(err){
+      showToast('Could not save task: ' + err.message, true);
+    }finally{
+      saveBtn.disabled = false; saveBtn.textContent = 'Save task';
+    }
+  });
+
+  /* =========================================================
+     Edit / Detail modal
+  ==========================================================*/
+  const editOverlay = document.getElementById('editModalOverlay');
+  const editForm = document.getElementById('editForm');
+  const statusSelect = document.getElementById('e_status');
+  const onholdWrap = document.getElementById('onholdWrap');
+
+  function toggleOnholdField(){
+    const isOnhold = statusSelect.value === 'Onhold';
+    onholdWrap.classList.toggle('show', isOnhold);
+  }
+  statusSelect.addEventListener('change', toggleOnholdField);
+
+  function currentEditFileAndTask(){
+    if(!editingContext) return null;
+    const file = state.files[editingContext.fileArrIndex];
+    const task = file ? file.tasks[editingContext.taskIndex] : null;
+    return task ? { file, task } : null;
+  }
+
+  async function renderEditImages(){
+    const ctx = currentEditFileAndTask();
+    const grid = document.getElementById('e_imagesGrid');
+    if(!ctx){ grid.innerHTML = ''; return; }
+    const { task } = ctx;
+    task.images = task.images || [];
+    if(task.images.length === 0){ grid.innerHTML = '<span class="thumb-empty">No images yet.</span>'; return; }
+    grid.innerHTML = '<span class="thumb-loading">Loading images…</span>';
+
+    const items = [];
+    for(const name of task.images){
+      try{
+        const fh = await state.dirHandle.getFileHandle(name);
+        const f = await fh.getFile();
+        items.push({ name, url: URL.createObjectURL(f) });
+      }catch(e){
+        items.push({ name, url: null });
+      }
+    }
+    grid.innerHTML = '';
+    items.forEach((it, idx)=>{
+      const cell = document.createElement('div');
+      cell.className = 'thumb-cell';
+      cell.innerHTML = `
+        ${it.url ? `<img src="${it.url}" alt="${escapeHtml(it.name)}">` : `<div class="thumb-missing">file not found</div>`}
+        <button type="button" class="thumb-remove" data-idx="${idx}" title="Remove">✕</button>
+        <span class="thumb-name" title="${escapeHtml(it.name)}">${escapeHtml(it.name)}</span>`;
+      if(it.url){
+        cell.querySelector('img').addEventListener('click', ()=>window.open(it.url, '_blank'));
+      }
+      cell.querySelector('.thumb-remove').addEventListener('click', ()=>removeEditImage(idx));
+      grid.appendChild(cell);
+    });
+  }
+
+  async function removeEditImage(idx){
+    const ctx = currentEditFileAndTask();
+    if(!ctx) return;
+    if(!confirm('Remove this image?')) return;
+    const { file, task } = ctx;
+    const name = task.images[idx];
+    task.images.splice(idx, 1);
+    try{ await state.dirHandle.removeEntry(name); }catch(e){ /* file may already be gone — reference removal still proceeds */ }
+    try{
+      await writeJSONFile(file);
+      showToast('Image removed');
+    }catch(err){
+      showToast('Could not update task file: ' + err.message, true);
+    }
+    renderEditImages();
+    renderTaskList();
+  }
+
+  document.getElementById('e_imagesInput').addEventListener('change', async (e)=>{
+    const files = Array.from(e.target.files || []);
+    e.target.value = '';
+    const ctx = currentEditFileAndTask();
+    if(!ctx || files.length === 0) return;
+    const { file, task } = ctx;
+    task.images = task.images || [];
+    const startIdx = task.images.length + 1;
+    try{
+      for(let i=0;i<files.length;i++){
+        const filename = await saveImageToFolder(files[i], task.project, task.id, startIdx + i);
+        task.images.push(filename);
+      }
+      await writeJSONFile(file);
+      await renderEditImages();
+      renderTaskList();
+      showToast(files.length > 1 ? files.length + ' images uploaded' : 'Image uploaded');
+    }catch(err){
+      showToast('Could not upload image: ' + err.message, true);
+    }
+  });
+
+  function openEditModal(fileArrIndex, taskIndex){
+    const file = state.files[fileArrIndex];
+    const task = file.tasks[taskIndex];
+    if(!task) return;
+    editingContext = { fileArrIndex, taskIndex };
+    task.images = task.images || [];
+
+    document.getElementById('editModalTitle').textContent = task.title;
+    document.getElementById('editModalSub').textContent = `${file.name} · created ${displayDateTime(task.createDate)}`;
+    document.getElementById('e_title').value = task.title || '';
+    document.getElementById('e_project').value = task.project || '';
+    document.getElementById('e_createDate').value = displayDateTime(task.createDate);
+    document.getElementById('e_targetDate').value = displayDate(task.targetDate);
+    document.getElementById('e_completedDate').value = task.completedDate || '';
+    document.getElementById('e_description').value = task.description || '';
+    statusSelect.value = task.status || 'Pending';
+    document.getElementById('e_onholdRemark').value = task.onholdRemark || '';
+    document.getElementById('err_onhold').classList.remove('show');
+    toggleOnholdField();
+    renderEditImages();
+
+    editOverlay.classList.add('open');
+  }
+  function closeEditModal(){ editOverlay.classList.remove('open'); editingContext = null; }
+
+  document.getElementById('editModalClose').addEventListener('click', closeEditModal);
+  document.getElementById('editCancelBtn').addEventListener('click', closeEditModal);
+  editOverlay.addEventListener('click', (e)=>{ if(e.target === editOverlay) closeEditModal(); });
+
+  editForm.addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    if(!editingContext) return;
+    const status = statusSelect.value;
+    const remark = document.getElementById('e_onholdRemark').value.trim();
+    const errEl = document.getElementById('err_onhold');
+    if(status === 'Onhold' && !remark){ errEl.classList.add('show'); return; }
+    errEl.classList.remove('show');
+
+    const saveBtn = document.getElementById('editSaveBtn');
+    saveBtn.disabled = true; saveBtn.textContent = 'Saving…';
+    try{
+      const { fileArrIndex, taskIndex } = editingContext;
+      const file = state.files[fileArrIndex];
+      const task = file.tasks[taskIndex];
+      task.status = status;
+      task.onholdRemark = status === 'Onhold' ? remark : '';
+      task.completedDate = document.getElementById('e_completedDate').value || '';
+      await writeJSONFile(file);
+      renderAll();
+      closeEditModal();
+      showToast('Task updated');
+    }catch(err){
+      showToast('Could not save changes: ' + err.message, true);
+    }finally{
+      saveBtn.disabled = false; saveBtn.textContent = 'Save changes';
+    }
+  });
+
+  document.getElementById('deleteTaskBtn').addEventListener('click', async ()=>{
+    if(!editingContext) return;
+    if(!confirm('Delete this task permanently?')) return;
+    const { fileArrIndex, taskIndex } = editingContext;
+    const file = state.files[fileArrIndex];
+    try{
+      file.tasks.splice(taskIndex, 1);
+      await writeJSONFile(file);
+      renderAll();
+      closeEditModal();
+      showToast('Task deleted');
+    }catch(err){
+      showToast('Could not delete task: ' + err.message, true);
+    }
+  });
+
+  /* =========================================================
+     Global controls
+  ==========================================================*/
+  document.getElementById('fabAdd').addEventListener('click', async ()=>{
+    if(!state.dirHandle){
+      const ok = await pickFolder();
+      if(!ok) return;
+    }
+    openAddModal();
+  });
+
+  document.getElementById('connectFolderBtn').addEventListener('click', pickFolder);
+  document.getElementById('refreshBtn').addEventListener('click', async ()=>{
+    if(!state.dirHandle){ showToast('Connect a folder first.', true); return; }
+    await loadAllFiles();
+    showToast('Reloaded from folder');
+  });
+
+  document.getElementById('tabPagePrev').addEventListener('click', ()=>{
+    if(state.tabPage>0){ state.tabPage--; renderTabs(); }
+  });
+  document.getElementById('tabPageNext').addEventListener('click', ()=>{
+    const totalPages = Math.max(1, Math.ceil(state.files.length / TABS_PER_PAGE));
+    if(state.tabPage < totalPages-1){ state.tabPage++; renderTabs(); }
+  });
+
+  let searchDebounce;
+  document.getElementById('searchInput').addEventListener('input', (e)=>{
+    clearTimeout(searchDebounce);
+    searchDebounce = setTimeout(()=>{
+      state.search = e.target.value.trim();
+      renderTaskList();
+    }, 150);
+  });
+  document.getElementById('statusFilter').addEventListener('change', (e)=>{
+    state.statusFilter = e.target.value;
+    renderTaskList();
+  });
+
+  document.addEventListener('keydown', (e)=>{
+    if(e.key === 'Escape'){
+      if(addOverlay.classList.contains('open')) closeAddModal();
+      if(editOverlay.classList.contains('open')) closeEditModal();
+    }
+  });
+
+  /* =========================================================
+     Init
+  ==========================================================*/
+  async function init(){
+    if(!fsSupported){
+      document.getElementById('unsupportedBanner').style.display = 'block';
+      document.getElementById('connectFolderBtn').disabled = true;
+      return;
+    }
+    await tryRestoreFolder();
+  }
+  init();
+
+})();
+</script>
+</body>
+</html>
