@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ajay Tools</title>
+
+<style>
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    font-family:Arial,Helvetica,sans-serif;
+}
+
+body{
+    background:#f2f2f2;
+    height:100vh;
+    display:flex;
+    flex-direction:column;
+}
+
+header{
+    background:#1976d2;
+    color:#fff;
+    position:sticky;
+    top:0;
+    z-index:1000;
+    box-shadow:0 2px 6px rgba(0,0,0,.2);
+}
+
+nav{
+    display:flex;
+    justify-content:space-around;
+    align-items:center;
+    height:56px;
+}
+
+nav button{
+    flex:1;
+    height:100%;
+    border:none;
+    background:none;
+    color:white;
+    font-size:16px;
+    font-weight:bold;
+    cursor:pointer;
+    transition:.3s;
+}
+
+nav button:hover,
+nav button.active{
+    background:rgba(255,255,255,.2);
+}
+
+#content{
+    flex:1;
+    overflow:auto;
+    background:white;
+}
+
+#homePage{
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    height:100%;
+    font-size:30px;
+    font-weight:bold;
+    color:#1976d2;
+}
+
+iframe{
+    width:100%;
+    height:calc(100vh - 56px);
+    border:none;
+}
+</style>
+
+</head>
+<body>
+
+<header>
+    <nav>
+        <button id="homeBtn" class="active" onclick="showHome()">Home</button>
+        <button id="todoBtn" onclick="loadPage('tools/todo.html','todoBtn')">TODO</button>
+        <button id="videoBtn" onclick="loadPage('tools/VideoToPhoto.html','videoBtn')">VideoToPhoto</button>
+    </nav>
+</header>
+
+<div id="content">
+    <div id="homePage">
+        Welcome Ajay
+    </div>
+</div>
+
+<script>
+function clearActive(){
+    document.querySelectorAll("nav button").forEach(btn=>{
+        btn.classList.remove("active");
+    });
+}
+
+function showHome(){
+    clearActive();
+    document.getElementById("homeBtn").classList.add("active");
+
+    document.getElementById("content").innerHTML = `
+        <div id="homePage">
+            Welcome Ajay
+        </div>
+    `;
+}
+
+function loadPage(page, buttonId){
+    clearActive();
+    document.getElementById(buttonId).classList.add("active");
+
+    document.getElementById("content").innerHTML =
+        '<iframe src="'+page+'"></iframe>';
+}
+</script>
+
+</body>
+</html>
