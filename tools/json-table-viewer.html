@@ -1,0 +1,1156 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JSON ⇄ Table</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<link rel="icon" type="image/svg+xml" href="image/favicon.svg">
+<style>
+  :root{
+    --bg:#0F1720;
+    --panel:#161F2B;
+    --panel-alt:#1B2530;
+    --panel-head:#111925;
+    --border:#28374A;
+    --border-soft:#20303F;
+    --text:#E7EEF5;
+    --text-dim:#8FA1B5;
+    --text-faint:#5E7185;
+    --accent:#F2A93B;
+    --accent-ink:#3A2A0E;
+    --accent-2:#49C6B8;
+    --danger:#EF6461;
+    --success:#6FCF97;
+    --row-hover:#1E2A38;
+    --row-selected:#1A2E33;
+    --radius-sm:4px;
+    --radius-md:7px;
+    --mono:'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+    --sans:'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--text);
+    font-family:var(--sans);
+    font-size:13.5px;
+    -webkit-font-smoothing:antialiased;
+  }
+  .app{
+    display:flex;
+    flex-direction:column;
+    height:100vh;
+  }
+  .topbar{
+    padding:14px 20px 12px;
+    border-bottom:1px solid var(--border-soft);
+    display:flex;
+    align-items:baseline;
+    gap:10px;
+    flex-shrink:0;
+  }
+  .topbar h1{
+    font-size:15.5px;
+    font-weight:600;
+    margin:0;
+    letter-spacing:0.2px;
+  }
+  .topbar h1 .arrow{color:var(--accent); padding:0 2px;}
+  .topbar .sub{
+    color:var(--text-faint);
+    font-size:12px;
+  }
+  .panels{
+    flex:1;
+    display:grid;
+    grid-template-columns:minmax(320px,38%) 1fr;
+    gap:12px;
+    padding:12px;
+    min-height:0;
+  }
+  @media (max-width:900px){
+    .panels{grid-template-columns:1fr; grid-template-rows:38% 62%;}
+  }
+  .panels.grid-fullscreen{grid-template-columns:1fr !important; grid-template-rows:1fr !important;}
+  .panels.grid-fullscreen .panel.json-panel{display:none;}
+  .panel{
+    background:var(--panel);
+    border:1px solid var(--border-soft);
+    border-radius:var(--radius-md);
+    display:flex;
+    flex-direction:column;
+    min-height:0;
+    overflow:hidden;
+  }
+  .panel-head{
+    background:var(--panel-head);
+    padding:9px 12px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    border-bottom:1px solid var(--border-soft);
+    flex-shrink:0;
+    gap:10px;
+  }
+  .panel-head .label{
+    font-size:11px;
+    font-weight:600;
+    letter-spacing:1.2px;
+    color:var(--text-dim);
+  }
+  .panel-head .actions{
+    display:flex;
+    gap:6px;
+    flex-wrap:wrap;
+    align-items:center;
+  }
+  button.tool{
+    background:var(--panel-alt);
+    border:1px solid var(--border);
+    color:var(--text);
+    font-family:var(--sans);
+    font-size:11.5px;
+    font-weight:500;
+    padding:5px 9px;
+    border-radius:var(--radius-sm);
+    cursor:pointer;
+    display:inline-flex;
+    align-items:center;
+    gap:5px;
+    white-space:nowrap;
+    transition:background .12s, border-color .12s;
+  }
+  button.tool:hover{background:#233040; border-color:#3A4E63;}
+  button.tool:active{transform:translateY(1px);}
+  button.tool.primary{
+    background:var(--accent);
+    color:var(--accent-ink);
+    border-color:var(--accent);
+    font-weight:600;
+  }
+  button.tool.primary:hover{filter:brightness(1.06);}
+  button.tool.on{
+    background:#20313A;
+    border-color:var(--accent-2);
+    color:var(--accent-2);
+  }
+  button.tool:disabled{opacity:.4; cursor:not-allowed;}
+  button.tool svg{width:13px; height:13px; flex-shrink:0;}
+  select.tool{
+    background:var(--panel-alt);
+    border:1px solid var(--border);
+    color:var(--text);
+    font-family:var(--sans);
+    font-size:11.5px;
+    padding:5px 6px;
+    border-radius:var(--radius-sm);
+  }
+
+  /* JSON panel */
+  #jsonInput{
+    flex:1;
+    resize:none;
+    border:none;
+    outline:none;
+    background:var(--panel);
+    color:var(--text);
+    font-family:var(--mono);
+    font-size:12.5px;
+    line-height:1.55;
+    padding:12px;
+    tab-size:2;
+  }
+  #jsonInput::placeholder{color:var(--text-faint);}
+  .status-bar{
+    border-top:1px solid var(--border-soft);
+    padding:7px 12px;
+    font-family:var(--mono);
+    font-size:11.5px;
+    flex-shrink:0;
+    min-height:16px;
+  }
+  .status-bar.ok{color:var(--success);}
+  .status-bar.err{color:var(--danger); white-space:pre-wrap;}
+  .status-bar.info{color:var(--text-dim);}
+
+  /* Grid panel */
+  .grid-body{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    min-height:0;
+    position:relative;
+  }
+  .columns-panel{
+    position:absolute;
+    top:0; right:8px;
+    background:var(--panel-alt);
+    border:1px solid var(--border);
+    border-radius:var(--radius-md);
+    box-shadow:0 10px 30px rgba(0,0,0,.4);
+    width:250px;
+    max-height:360px;
+    display:flex;
+    flex-direction:column;
+    z-index:30;
+    overflow:hidden;
+  }
+  .columns-panel.hidden{display:none;}
+  .columns-panel .cp-search{
+    padding:8px;
+    border-bottom:1px solid var(--border-soft);
+  }
+  .columns-panel input[type=text]{
+    width:100%;
+    background:var(--panel);
+    border:1px solid var(--border);
+    color:var(--text);
+    font-size:11.5px;
+    padding:5px 7px;
+    border-radius:var(--radius-sm);
+    font-family:var(--sans);
+  }
+  .columns-panel .cp-actions{
+    display:flex; gap:6px; padding:6px 8px; border-bottom:1px solid var(--border-soft);
+  }
+  .columns-panel .cp-actions a{
+    font-size:11px; color:var(--accent-2); cursor:pointer; text-decoration:none;
+  }
+  .columns-panel .cp-list{
+    overflow-y:auto;
+    padding:4px 0;
+  }
+  .cp-item{
+    display:flex; align-items:center; gap:7px;
+    padding:5px 10px;
+    font-size:12px;
+    cursor:pointer;
+  }
+  .cp-item:hover{background:var(--row-hover);}
+  .cp-item .tag{
+    font-size:9.5px; color:var(--text-faint); border:1px solid var(--border); border-radius:3px; padding:0 4px;
+  }
+  .cp-item span.name{overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+
+  .table-wrap{
+    flex:1;
+    overflow:auto;
+    min-height:0;
+  }
+  table.data-table{
+    border-collapse:collapse;
+    width:100%;
+    table-layout:fixed;
+    font-family:var(--mono);
+    font-size:12px;
+  }
+  table.data-table thead th{
+    position:sticky;
+    top:0;
+    background:var(--panel-head);
+    border-bottom:1px solid var(--border);
+    border-right:1px solid var(--border-soft);
+    padding:0;
+    z-index:5;
+    text-align:left;
+  }
+  .col-resize-handle{
+    position:absolute;
+    top:0; right:-3px;
+    width:7px;
+    height:100%;
+    cursor:col-resize;
+    z-index:9;
+    touch-action:none;
+  }
+  .col-resize-handle::after{
+    content:'';
+    position:absolute;
+    top:0; bottom:0; left:3px;
+    width:1px;
+    background:transparent;
+  }
+  .col-resize-handle:hover::after, .col-resize-handle.active::after{background:var(--accent-2);}
+  .col-resize-handle.active{background:rgba(73,198,184,.12);}
+  .th-inner{
+    display:flex;
+    align-items:center;
+    gap:5px;
+    padding:7px 10px 7px 8px;
+    cursor:pointer;
+    user-select:none;
+    white-space:nowrap;
+    overflow:hidden;
+  }
+  .th-inner:hover{background:#1B2837;}
+  .th-inner .colname{font-weight:600; color:var(--text); overflow:hidden; text-overflow:ellipsis;}
+  .th-inner .sort-arrow{color:var(--accent); font-size:10px; width:9px; display:inline-block;}
+  .th-inner .nested-flag{
+    font-size:9px; color:var(--accent-2); border:1px solid #285a53; border-radius:3px; padding:0 4px; font-family:var(--sans);
+  }
+  th.checkbox-col, td.checkbox-col{
+    position:sticky; left:0; background:var(--panel-head); z-index:6;
+    width:34px; text-align:center; border-right:1px solid var(--border);
+  }
+  td.checkbox-col{background:var(--panel); z-index:2;}
+  tr.selected td.checkbox-col{background:var(--row-selected);}
+  th.rownum-col, td.rownum-col{
+    width:44px; color:var(--text-faint); text-align:right; padding-right:8px !important; font-size:11px;
+  }
+  .filter-row td{
+    background:var(--panel-alt);
+    border-bottom:1px solid var(--border);
+    border-right:1px solid var(--border-soft);
+    padding:4px 6px;
+    position:sticky;
+    top:31px;
+    z-index:4;
+  }
+  .filter-row input{
+    width:100%;
+    background:var(--panel);
+    border:1px solid var(--border);
+    color:var(--text);
+    font-family:var(--mono);
+    font-size:11px;
+    padding:4px 6px;
+    border-radius:3px;
+  }
+  table.data-table tbody td{
+    padding:6px 8px;
+    border-bottom:1px solid var(--border-soft);
+    border-right:1px solid var(--border-soft);
+    vertical-align:top;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+  table.data-table.wrap-cells tbody td{
+    white-space:normal;
+    word-break:break-word;
+    overflow-wrap:anywhere;
+    text-overflow:clip;
+    overflow:visible;
+  }
+  table.data-table.wrap-cells .expand-btn{white-space:nowrap;}
+  table.data-table tbody tr.data-row:hover td{background:var(--row-hover);}
+  table.data-table tbody tr.data-row.selected td{background:var(--row-selected);}
+  .cell-null{color:var(--text-faint); font-style:italic;}
+  .expand-btn{
+    background:none;
+    border:1px solid var(--border);
+    color:var(--accent-2);
+    font-family:var(--sans);
+    font-size:10.5px;
+    padding:2px 6px;
+    border-radius:10px;
+    cursor:pointer;
+  }
+  .expand-btn:hover{border-color:var(--accent-2);}
+  tr.nested-row td{
+    background:#0F171F;
+    padding:10px 14px;
+    white-space:normal;
+  }
+  .nested-field-label{
+    font-family:var(--sans);
+    font-size:10.5px;
+    color:var(--text-dim);
+    margin-bottom:5px;
+    letter-spacing:.4px;
+  }
+  table.nested-table{
+    border-collapse:collapse;
+    font-size:11.5px;
+    margin-bottom:8px;
+    background:var(--panel);
+    border:1px solid var(--border-soft);
+  }
+  table.nested-table th{
+    background:var(--panel-alt);
+    text-align:left;
+    padding:5px 8px;
+    border-bottom:1px solid var(--border-soft);
+    border-right:1px solid var(--border-soft);
+    color:var(--text-dim);
+    font-weight:600;
+  }
+  table.nested-table td{
+    padding:5px 8px;
+    border-bottom:1px solid var(--border-soft);
+    border-right:1px solid var(--border-soft);
+  }
+  .nested-empty{color:var(--text-faint); font-style:italic; font-size:11.5px;}
+
+  .empty-state{
+    flex:1;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    color:var(--text-faint);
+    font-size:12.5px;
+    padding:30px;
+    text-align:center;
+    line-height:1.6;
+  }
+  .empty-state code{color:var(--text-dim); font-family:var(--mono);}
+
+  .footer-bar{
+    border-top:1px solid var(--border-soft);
+    padding:8px 12px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    flex-shrink:0;
+    font-size:11.5px;
+    color:var(--text-dim);
+    gap:10px;
+    flex-wrap:wrap;
+  }
+  .footer-bar .pager{
+    display:flex; align-items:center; gap:6px;
+  }
+  .footer-bar .pager button.tool{padding:4px 8px;}
+  .footer-bar .pageinfo{min-width:90px; text-align:center;}
+
+  ::-webkit-scrollbar{width:10px; height:10px;}
+  ::-webkit-scrollbar-track{background:var(--panel);}
+  ::-webkit-scrollbar-thumb{background:#2C3D50; border-radius:6px;}
+  ::-webkit-scrollbar-thumb:hover{background:#3A4E63;}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="topbar">
+    <h1>JSON<span class="arrow">⇄</span>Table</h1>
+    <div class="sub">Paste a JSON array to view, filter, sort and export it as a table — everything runs in your browser.</div>
+  </div>
+
+  <div class="panels" id="panels">
+    <section class="panel json-panel">
+      <div class="panel-head">
+        <div class="label">JSON</div>
+        <div class="actions">
+			<div>
+				<select class="tool" id="sampleSelect">
+					<option value="">Load sample…</option>
+					<option value="1">Sample 1 — object w/ nested array</option>
+					<option value="2">Sample 2 — flat array</option>
+					<option value="3">Sample 3 — array w/ nested arrays</option>
+				</select>
+			</div>
+			<div>
+				<button class="tool primary" id="btnFormat" title="Validate and pretty-print">Format</button>
+				<button class="tool" id="btnMinify" title="Minify JSON">Minify</button>
+				<button class="tool" id="btnCopy" title="Copy JSON to clipboard">Copy</button>
+				<button class="tool" id="btnClear" title="Clear input">Clear</button>
+			</div>
+		</div>
+      </div>
+      <textarea id="jsonInput" spellcheck="false" placeholder='Paste JSON here, e.g. [ { &quot;id&quot;:1, &quot;name&quot;:&quot;ajay&quot; } ]'></textarea>
+      <div class="status-bar info" id="statusBar">Waiting for input…</div>
+    </section>
+
+    <section class="panel grid-panel">
+      <div class="panel-head">
+        <div class="label">GRID</div>
+        <div class="actions">
+          <button class="tool" id="btnFilters" title="Toggle column filters">Filters</button>
+          <button class="tool" id="btnWrap" title="Toggle word wrap in cells">Wrap text</button>
+          <button class="tool" id="btnColumns" title="Show / hide columns">Columns</button>
+          <button class="tool" id="btnClearSort" title="Clear sorting">Clear sort</button>
+          <button class="tool" id="btnClearSelection" title="Clear selected rows">Clear selection</button>
+          <button class="tool" id="btnExportCsv" title="Export current view to CSV">Export CSV</button>
+          <button class="tool primary" id="btnExportXlsx" title="Export current view to Excel">Export Excel</button>
+          <button class="tool" id="btnFullscreen" title="Expand grid to full screen" disabled>Full screen</button>
+        </div>
+      </div>
+      <div class="grid-body">
+        <div class="columns-panel hidden" id="columnsPanel">
+          <div class="cp-search"><input type="text" id="cpSearch" placeholder="Search columns…"></div>
+          <div class="cp-actions"><a id="cpShowAll">Show all</a><a id="cpHideAll">Hide all</a></div>
+          <div class="cp-list" id="cpList"></div>
+        </div>
+        <div class="table-wrap" id="tableWrap">
+          <div class="empty-state" id="emptyState">Paste a JSON array on the left — e.g. <code>[{"id":1,"name":"ajay"}]</code> — and the table will appear here.</div>
+          <table class="data-table" id="dataTable" style="display:none;">
+            <colgroup id="tableColgroup"></colgroup>
+            <thead id="tableHead"></thead>
+            <tbody id="tableBody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="footer-bar">
+        <div id="statsText">0 rows · 0 columns</div>
+        <div class="pager">
+          <select class="tool" id="pageSizeSelect">
+            <option value="25">25 / page</option>
+            <option value="50" selected>50 / page</option>
+            <option value="100">100 / page</option>
+            <option value="250">250 / page</option>
+            <option value="1000">1000 / page</option>
+          </select>
+          <button class="tool" id="btnPrev">‹ Prev</button>
+          <span class="pageinfo" id="pageInfo">Page 1 / 1</span>
+          <button class="tool" id="btnNext">Next ›</button>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---------- Samples ----------
+  var SAMPLES = {
+    "1": '{ "id":1, "name": "ajay", "data": [ { "position":"UP", "title":"dev" }]}',
+    "2": '[ { "id":1, "name": "ajay"} ]',
+    "3": '[ { "id":1, "name": "ajay", "data": [ { "position":"UP", "title":"mgr" },{ "position":"UP", "title":"lead" }]} ]'
+  };
+
+  // ---------- State ----------
+  var state = {
+    rawValid:false,
+    rootIsArray:false,
+    data:[],              // array of plain objects (post-normalization)
+    columns:[],           // ordered top-level keys
+    nestedKeys:new Set(), // keys whose value is an array-of-objects for some row
+    hiddenColumns:new Set(),
+    filters:{},
+    filtersVisible:false,
+    sortCol:null,
+    sortDir:1,
+    page:1,
+    pageSize:50,
+    selected:new Set(),   // set of rid
+    expanded:new Set(),   // set of "rid::col"
+    ridMap:new Map(),     // object ref -> rid
+    isFullscreen:false,
+    columnWidths:{},      // col -> px width (user-resized)
+    wrapText:false
+  };
+  var DEFAULT_COL_WIDTH = 170;
+  var MIN_COL_WIDTH = 60;
+  function getColWidth(col){
+    return state.columnWidths[col] || DEFAULT_COL_WIDTH;
+  }
+
+  // ---------- Helpers ----------
+  function isPlainObject(v){ return v!==null && typeof v==='object' && !Array.isArray(v); }
+  function isArrayOfObjects(v){ return Array.isArray(v) && v.length>0 && v.every(isPlainObject); }
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+  }
+  function cssAttrEscape(s){
+    if(window.CSS && CSS.escape) return CSS.escape(s);
+    return String(s).replace(/["\\]/g, '\\$&');
+  }
+  function formatCellValue(val){
+    if(val===undefined) return '';
+    if(val===null) return 'null';
+    if(typeof val==='object') return JSON.stringify(val);
+    return String(val);
+  }
+  function debounce(fn, ms){
+    var t;
+    return function(){
+      var args=arguments, ctx=this;
+      clearTimeout(t);
+      t=setTimeout(function(){ fn.apply(ctx,args); }, ms);
+    };
+  }
+  function posToLineCol(str, pos){
+    var lines = str.slice(0,pos).split('\n');
+    return {line:lines.length, col:lines[lines.length-1].length+1};
+  }
+
+  function analyzeColumns(data){
+    var colOrder = [], colSet = new Set(), nestedKeys = new Set();
+    for(var i=0;i<data.length;i++){
+      var row = data[i];
+      if(!isPlainObject(row)) continue;
+      var keys = Object.keys(row);
+      for(var k=0;k<keys.length;k++){
+        var key = keys[k];
+        if(!colSet.has(key)){ colSet.add(key); colOrder.push(key); }
+        if(isArrayOfObjects(row[key])) nestedKeys.add(key);
+      }
+    }
+    return {columns:colOrder, nestedKeys:nestedKeys};
+  }
+
+  // ---------- DOM refs ----------
+  var $ = function(id){ return document.getElementById(id); };
+  var jsonInput = $('jsonInput');
+  var statusBar = $('statusBar');
+  var tableWrap = $('tableWrap');
+  var emptyState = $('emptyState');
+  var dataTable = $('dataTable');
+  var tableHead = $('tableHead');
+  var tableBody = $('tableBody');
+  var statsText = $('statsText');
+  var pageInfo = $('pageInfo');
+  var columnsPanel = $('columnsPanel');
+  var cpList = $('cpList');
+  var cpSearch = $('cpSearch');
+
+  // ---------- Parsing ----------
+  function setStatus(msg, kind){
+    statusBar.className = 'status-bar ' + (kind||'info');
+    statusBar.textContent = msg;
+  }
+
+  function normalizeRoot(parsed){
+    // returns {ok, rootIsArray, data}
+    if(Array.isArray(parsed)){
+      if(parsed.length>0 && parsed.every(isPlainObject)){
+        return {rootIsArray:true, data:parsed};
+      }
+      // array of primitives / mixed -> wrap each into {value: ...} so it can still be tabulated
+      var wrapped = parsed.map(function(v){ return isPlainObject(v) ? v : {value:v}; });
+      return {rootIsArray:true, data:wrapped};
+    }
+    return {rootIsArray:false, data:[]};
+  }
+
+  function handleInput(){
+    var raw = jsonInput.value;
+    if(raw.trim()===''){
+      setStatus('Waiting for input…','info');
+      showEmpty('Paste a JSON array on the left and the table will appear here.');
+      state.rawValid=false;
+      return;
+    }
+    var parsed;
+    try{
+      parsed = JSON.parse(raw);
+    }catch(e){
+      state.rawValid=false;
+      var msg = e.message || 'Invalid JSON';
+      var m = /position (\d+)/.exec(msg);
+      if(m){
+        var lc = posToLineCol(raw, parseInt(m[1],10));
+        msg += '  (line ' + lc.line + ', col ' + lc.col + ')';
+      }
+      setStatus('Invalid JSON — ' + msg, 'err');
+      showEmpty('Fix the JSON error shown below the input box to see the table.');
+      return;
+    }
+
+    state.rawValid = true;
+    var norm = normalizeRoot(parsed);
+    state.rootIsArray = norm.rootIsArray;
+
+    if(!norm.rootIsArray){
+      setStatus('Valid JSON — root is an object, not an array. Formatting is available, but table view only works for JSON arrays.', 'ok');
+      showEmpty('This JSON is a valid object (not an array), so it can be formatted but not shown as a table. Use "Format" to pretty-print it, or load a sample array.');
+      return;
+    }
+
+    setStatus('Valid JSON array — ' + norm.data.length + ' row(s).', 'ok');
+    buildTable(norm.data);
+  }
+  var debouncedHandleInput = debounce(handleInput, 350);
+
+  function showEmpty(msg){
+    dataTable.style.display='none';
+    emptyState.style.display='flex';
+    emptyState.innerHTML = escapeHtml(msg);
+    statsText.textContent = '0 rows · 0 columns';
+    pageInfo.textContent = 'Page 1 / 1';
+    setFullscreenEnabled(false);
+  }
+
+  function applyFullscreenUI(){
+    var panels = $('panels');
+    var btn = $('btnFullscreen');
+    if(state.isFullscreen){
+      panels.classList.add('grid-fullscreen');
+      btn.classList.add('on');
+      btn.textContent = 'Exit full screen';
+    } else {
+      panels.classList.remove('grid-fullscreen');
+      btn.classList.remove('on');
+      btn.textContent = 'Full screen';
+    }
+  }
+  function setFullscreenEnabled(enabled){
+    var btn = $('btnFullscreen');
+    btn.disabled = !enabled;
+    if(!enabled && state.isFullscreen){
+      state.isFullscreen = false;
+      applyFullscreenUI();
+    }
+  }
+
+  // ---------- Table build ----------
+  function buildTable(data){
+    state.data = data;
+    state.ridMap = new Map();
+    data.forEach(function(row,i){ state.ridMap.set(row, i); });
+
+    var analysis = analyzeColumns(data);
+    state.columns = analysis.columns;
+    state.nestedKeys = analysis.nestedKeys;
+    state.hiddenColumns = new Set();
+    state.filters = {};
+    state.sortCol = null;
+    state.sortDir = 1;
+    state.page = 1;
+    state.selected = new Set();
+    state.expanded = new Set();
+
+    dataTable.style.display='table';
+    emptyState.style.display='none';
+    renderColumnsPanel();
+    renderAll();
+    setFullscreenEnabled(true);
+  }
+
+  function visibleColumns(){
+    return state.columns.filter(function(c){ return !state.hiddenColumns.has(c); });
+  }
+
+  function getFilteredSorted(){
+    var cols = state.columns;
+    var filters = state.filters;
+    var active = Object.keys(filters).filter(function(k){ return filters[k] && filters[k].trim()!==''; });
+    var out = state.data;
+    if(active.length>0){
+      out = out.filter(function(row){
+        for(var i=0;i<active.length;i++){
+          var col = active[i];
+          var needle = filters[col].toLowerCase();
+          var hay = formatCellValue(row[col]).toLowerCase();
+          if(hay.indexOf(needle)===-1) return false;
+        }
+        return true;
+      });
+    }
+    if(state.sortCol){
+      var col = state.sortCol, dir = state.sortDir;
+      out = out.slice().sort(function(a,b){
+        var av = a[col], bv = b[col];
+        var an = (av===undefined||av===null), bn=(bv===undefined||bv===null);
+        if(an && bn) return 0;
+        if(an) return 1;
+        if(bn) return -1;
+        if(typeof av==='number' && typeof bv==='number') return dir*(av-bv);
+        var as=String(av).toLowerCase(), bs=String(bv).toLowerCase();
+        if(as<bs) return -1*dir;
+        if(as>bs) return 1*dir;
+        return 0;
+      });
+    }
+    return out;
+  }
+
+  function renderAll(){
+    dataTable.classList.toggle('wrap-cells', state.wrapText);
+    renderHead();
+    var filtered = getFilteredSorted();
+    var totalPages = Math.max(1, Math.ceil(filtered.length/state.pageSize));
+    if(state.page>totalPages) state.page = totalPages;
+    var start = (state.page-1)*state.pageSize;
+    var pageData = filtered.slice(start, start+state.pageSize);
+    renderBody(pageData);
+    statsText.textContent = filtered.length + ' row' + (filtered.length!==1?'s':'') +
+      (filtered.length!==state.data.length ? ' (of ' + state.data.length + ')' : '') +
+      ' · ' + state.columns.length + ' column' + (state.columns.length!==1?'s':'') +
+      (state.selected.size>0 ? ' · ' + state.selected.size + ' selected' : '');
+    pageInfo.textContent = 'Page ' + state.page + ' / ' + totalPages;
+  }
+
+  function sortArrowFor(col){
+    if(state.sortCol!==col) return '';
+    return state.sortDir===1 ? '▲' : '▼';
+  }
+
+  function renderHead(){
+    var cols = visibleColumns();
+    var tableColgroup = $('tableColgroup');
+    var colgroupHtml = '<col style="width:34px"><col style="width:44px">';
+    cols.forEach(function(col){
+      colgroupHtml += '<col data-colref="'+escapeHtml(col)+'" style="width:'+getColWidth(col)+'px">';
+    });
+    tableColgroup.innerHTML = colgroupHtml;
+
+    var html = '<tr>';
+    html += '<th class="checkbox-col"><input type="checkbox" id="selectAllBox"></th>';
+    html += '<th class="rownum-col">#</th>';
+    cols.forEach(function(col){
+      var nested = state.nestedKeys.has(col);
+      html += '<th data-col="'+escapeHtml(col)+'"><div class="th-inner" data-sortcol="'+escapeHtml(col)+'">' +
+        '<span class="colname">'+escapeHtml(col)+'</span>' +
+        (nested ? '<span class="nested-flag">list</span>' : '') +
+        '<span class="sort-arrow">'+sortArrowFor(col)+'</span>' +
+        '</div><div class="col-resize-handle" data-resizecol="'+escapeHtml(col)+'" title="Drag to resize · double-click to reset width"></div></th>';
+    });
+    html += '</tr>';
+    if(state.filtersVisible){
+      html += '<tr class="filter-row">';
+      html += '<td></td><td></td>';
+      cols.forEach(function(col){
+        var val = state.filters[col] || '';
+        html += '<td><input type="text" data-filtercol="'+escapeHtml(col)+'" value="'+escapeHtml(val)+'" placeholder="filter…"></td>';
+      });
+      html += '</tr>';
+    }
+    tableHead.innerHTML = html;
+
+    // wire header events
+    tableHead.querySelectorAll('[data-sortcol]').forEach(function(el){
+      el.addEventListener('click', function(){
+        var col = el.getAttribute('data-sortcol');
+        if(state.sortCol!==col){ state.sortCol=col; state.sortDir=1; }
+        else if(state.sortDir===1){ state.sortDir=-1; }
+        else { state.sortCol=null; state.sortDir=1; }
+        state.page=1;
+        renderAll();
+      });
+    });
+    tableHead.querySelectorAll('[data-resizecol]').forEach(function(handle){
+      var col = handle.getAttribute('data-resizecol');
+      handle.addEventListener('mousedown', function(e){
+        e.preventDefault();
+        var startX = e.clientX;
+        var startWidth = getColWidth(col);
+        var colEl = tableColgroup.querySelector('col[data-colref="'+cssAttrEscape(col)+'"]');
+        handle.classList.add('active');
+        document.body.style.cursor = 'col-resize';
+        function onMove(ev){
+          var newWidth = Math.max(MIN_COL_WIDTH, startWidth + (ev.clientX - startX));
+          state.columnWidths[col] = newWidth;
+          if(colEl) colEl.style.width = newWidth + 'px';
+        }
+        function onUp(){
+          handle.classList.remove('active');
+          document.body.style.cursor = '';
+          document.removeEventListener('mousemove', onMove);
+          document.removeEventListener('mouseup', onUp);
+        }
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+      });
+      handle.addEventListener('dblclick', function(e){
+        e.preventDefault();
+        e.stopPropagation();
+        delete state.columnWidths[col];
+        renderAll();
+      });
+      handle.addEventListener('click', function(e){ e.stopPropagation(); });
+    });
+    tableHead.querySelectorAll('[data-filtercol]').forEach(function(el){
+      el.addEventListener('input', debounce(function(){
+        state.filters[el.getAttribute('data-filtercol')] = el.value;
+        state.page=1;
+        renderAll();
+      }, 250));
+    });
+    var selectAllBox = $('selectAllBox');
+    if(selectAllBox){
+      var pageRids = currentPageRids();
+      var allSelected = pageRids.length>0 && pageRids.every(function(r){ return state.selected.has(r); });
+      var someSelected = pageRids.some(function(r){ return state.selected.has(r); });
+      selectAllBox.checked = allSelected;
+      selectAllBox.indeterminate = someSelected && !allSelected;
+      selectAllBox.addEventListener('change', function(){
+        var rids = currentPageRids();
+        if(selectAllBox.checked){ rids.forEach(function(r){ state.selected.add(r); }); }
+        else{ rids.forEach(function(r){ state.selected.delete(r); }); }
+        renderAll();
+      });
+    }
+  }
+
+  var _lastPageRids = [];
+  function currentPageRids(){ return _lastPageRids; }
+
+  function renderBody(pageData){
+    var cols = visibleColumns();
+    var html = '';
+    _lastPageRids = [];
+    pageData.forEach(function(row, idx){
+      var rid = state.ridMap.get(row);
+      _lastPageRids.push(rid);
+      var selected = state.selected.has(rid);
+      html += '<tr class="data-row'+(selected?' selected':'')+'" data-rid="'+rid+'">';
+      html += '<td class="checkbox-col"><input type="checkbox" data-rid="'+rid+'" '+(selected?'checked':'')+'></td>';
+      html += '<td class="rownum-col">'+(rid+1)+'</td>';
+      cols.forEach(function(col){
+        if(state.nestedKeys.has(col)){
+          var arr = row[col];
+          var n = Array.isArray(arr) ? arr.length : 0;
+          var key = rid+'::'+col;
+          var isOpen = state.expanded.has(key);
+          html += '<td><button class="expand-btn" data-expand="'+key+'">'+n+' item'+(n!==1?'s':'')+' '+(isOpen?'▴':'▾')+'</button></td>';
+        } else {
+          var v = row[col];
+          if(v===null){
+            html += '<td class="cell-null" title="null">null</td>';
+          } else {
+            var text = formatCellValue(v);
+            html += '<td title="'+escapeHtml(text)+'">'+escapeHtml(text)+'</td>';
+          }
+        }
+      });
+      html += '</tr>';
+
+      // expanded nested rows
+      cols.forEach(function(col){
+        if(!state.nestedKeys.has(col)) return;
+        var key = rid+'::'+col;
+        if(!state.expanded.has(key)) return;
+        var colspan = cols.length + 2;
+        html += '<tr class="nested-row"><td colspan="'+colspan+'">' +
+          '<div class="nested-field-label">'+escapeHtml(col)+'</div>' +
+          renderNestedTable(row[col]) +
+          '</td></tr>';
+      });
+    });
+    tableBody.innerHTML = html;
+
+    tableBody.querySelectorAll('[data-expand]').forEach(function(btn){
+      btn.addEventListener('click', function(e){
+        e.stopPropagation();
+        var key = btn.getAttribute('data-expand');
+        if(state.expanded.has(key)) state.expanded.delete(key);
+        else state.expanded.add(key);
+        renderAll();
+      });
+    });
+    tableBody.querySelectorAll('input[type=checkbox][data-rid]').forEach(function(cb){
+      cb.addEventListener('click', function(e){ e.stopPropagation(); });
+      cb.addEventListener('change', function(){
+        var rid = parseInt(cb.getAttribute('data-rid'),10);
+        if(cb.checked) state.selected.add(rid); else state.selected.delete(rid);
+        renderAll();
+      });
+    });
+    tableBody.querySelectorAll('tr.data-row').forEach(function(tr){
+      tr.addEventListener('click', function(){
+        var rid = parseInt(tr.getAttribute('data-rid'),10);
+        if(state.selected.has(rid)) state.selected.delete(rid); else state.selected.add(rid);
+        renderAll();
+      });
+    });
+  }
+
+  function renderNestedTable(arr){
+    if(!Array.isArray(arr) || arr.length===0) return '<div class="nested-empty">No items</div>';
+    var analysis = analyzeColumns(arr);
+    var cols = analysis.columns, nestedKeys = analysis.nestedKeys;
+    var html = '<table class="nested-table"><thead><tr>';
+    cols.forEach(function(c){ html += '<th>'+escapeHtml(c)+'</th>'; });
+    html += '</tr></thead><tbody>';
+    arr.forEach(function(item){
+      html += '<tr>';
+      cols.forEach(function(c){
+        var val = item[c];
+        if(nestedKeys.has(c) && isArrayOfObjects(val)){
+          html += '<td>'+renderNestedTable(val)+'</td>';
+        } else {
+          var text = formatCellValue(val);
+          html += '<td>'+escapeHtml(text)+'</td>';
+        }
+      });
+      html += '</tr>';
+    });
+    html += '</tbody></table>';
+    return html;
+  }
+
+  // ---------- Columns panel ----------
+  function renderColumnsPanel(filterText){
+    filterText = (filterText||'').toLowerCase();
+    var html = '';
+    state.columns.forEach(function(col){
+      if(filterText && col.toLowerCase().indexOf(filterText)===-1) return;
+      var checked = !state.hiddenColumns.has(col);
+      var nested = state.nestedKeys.has(col);
+      html += '<label class="cp-item"><input type="checkbox" data-colvis="'+escapeHtml(col)+'" '+(checked?'checked':'')+'>' +
+        '<span class="name">'+escapeHtml(col)+'</span>' +
+        (nested ? '<span class="tag">list</span>' : '') +
+        '</label>';
+    });
+    cpList.innerHTML = html || '<div style="padding:10px;color:var(--text-faint);font-size:11.5px;">No matching columns</div>';
+    cpList.querySelectorAll('[data-colvis]').forEach(function(cb){
+      cb.addEventListener('change', function(){
+        var col = cb.getAttribute('data-colvis');
+        if(cb.checked) state.hiddenColumns.delete(col); else state.hiddenColumns.add(col);
+        renderAll();
+      });
+    });
+  }
+
+  // ---------- Export ----------
+  function exportRows(){
+    var filtered = getFilteredSorted();
+    return filtered.map(function(row){
+      var obj = {};
+      state.columns.forEach(function(col){
+        var v = row[col];
+        obj[col] = (v===undefined) ? '' : (typeof v==='object' && v!==null ? JSON.stringify(v) : v);
+      });
+      return obj;
+    });
+  }
+
+  function exportCsv(){
+    if(state.data.length===0) return;
+    var rows = exportRows();
+    var cols = state.columns;
+    var lines = [cols.map(csvEscape).join(',')];
+    rows.forEach(function(r){
+      lines.push(cols.map(function(c){ return csvEscape(r[c]); }).join(','));
+    });
+    var blob = new Blob([lines.join('\r\n')], {type:'text/csv;charset=utf-8;'});
+    downloadBlob(blob, getDataExportFileName('csv'));
+  }
+  function csvEscape(v){
+    var s = v===undefined||v===null ? '' : String(v);
+    if(/[",\r\n]/.test(s)) s = '"' + s.replace(/"/g,'""') + '"';
+    return s;
+  }
+  function downloadBlob(blob, filename){
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 2000);
+  }
+  function exportXlsx(){
+    if(state.data.length===0) return;
+    if(typeof XLSX === 'undefined'){
+      setStatus('Excel library unavailable (offline?) — falling back to CSV export.', 'err');
+      exportCsv();
+      return;
+    }
+    var rows = exportRows();
+    var ws = XLSX.utils.json_to_sheet(rows, {header: state.columns});
+    var wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Data');
+    XLSX.writeFile(wb, getDataExportFileName('xlsx'));
+  }
+  
+  function getDataExportFileName(extension = 'xlsx') {
+    const date = new Date();
+    const day = String(date.getDate()).padStart(2, '0');
+    const months = [
+      '01', '02', '03', '04', '05', '06',
+      '07', '08', '09', '10', '11', '12'
+    ];
+    const month = months[date.getMonth()];
+    const year = String(date.getFullYear()).slice(-2);
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const seconds = String(date.getSeconds()).padStart(2, '0');
+  
+    return `data-export_${year}${month}${day}${hours}${minutes}${seconds}.${extension}`;
+  }
+
+
+  // ---------- Toolbar wiring ----------
+  jsonInput.addEventListener('input', debouncedHandleInput);
+
+  $('btnFormat').addEventListener('click', function(){
+    var raw = jsonInput.value;
+    try{
+      var parsed = JSON.parse(raw);
+      jsonInput.value = JSON.stringify(parsed, null, 2);
+      handleInput();
+    }catch(e){
+      handleInput(); // will show the error
+    }
+  });
+  $('btnMinify').addEventListener('click', function(){
+    try{
+      var parsed = JSON.parse(jsonInput.value);
+      jsonInput.value = JSON.stringify(parsed);
+      handleInput();
+    }catch(e){ handleInput(); }
+  });
+  $('btnCopy').addEventListener('click', function(){
+    jsonInput.select();
+    navigator.clipboard && navigator.clipboard.writeText(jsonInput.value).catch(function(){});
+  });
+  $('btnClear').addEventListener('click', function(){
+    jsonInput.value='';
+    handleInput();
+  });
+  $('sampleSelect').addEventListener('change', function(e){
+    var v = e.target.value;
+    if(v && SAMPLES[v]){
+      jsonInput.value = SAMPLES[v];
+      handleInput();
+      var raw = jsonInput.value;
+      try{ jsonInput.value = JSON.stringify(JSON.parse(raw), null, 2); handleInput(); }catch(err){}
+    }
+    e.target.value='';
+  });
+
+  $('btnFilters').addEventListener('click', function(){
+    state.filtersVisible = !state.filtersVisible;
+    $('btnFilters').classList.toggle('on', state.filtersVisible);
+    renderAll();
+  });
+  $('btnWrap').addEventListener('click', function(){
+    state.wrapText = !state.wrapText;
+    $('btnWrap').classList.toggle('on', state.wrapText);
+    renderAll();
+  });
+  $('btnClearSort').addEventListener('click', function(){
+    state.sortCol=null; state.sortDir=1; renderAll();
+  });
+  $('btnClearSelection').addEventListener('click', function(){
+    state.selected.clear(); renderAll();
+  });
+  $('btnColumns').addEventListener('click', function(){
+    columnsPanel.classList.toggle('hidden');
+  });
+  document.addEventListener('click', function(e){
+    if(!columnsPanel.contains(e.target) && e.target.id!=='btnColumns'){
+      columnsPanel.classList.add('hidden');
+    }
+  });
+  cpSearch.addEventListener('input', function(){ renderColumnsPanel(cpSearch.value); });
+  $('cpShowAll').addEventListener('click', function(){ state.hiddenColumns.clear(); renderColumnsPanel(cpSearch.value); renderAll(); });
+  $('cpHideAll').addEventListener('click', function(){ state.columns.forEach(function(c){ state.hiddenColumns.add(c); }); renderColumnsPanel(cpSearch.value); renderAll(); });
+
+  $('btnFullscreen').addEventListener('click', function(){
+    if($('btnFullscreen').disabled) return;
+    state.isFullscreen = !state.isFullscreen;
+    applyFullscreenUI();
+  });
+
+  $('btnExportCsv').addEventListener('click', exportCsv);
+  $('btnExportXlsx').addEventListener('click', exportXlsx);
+
+  $('pageSizeSelect').addEventListener('change', function(e){
+    state.pageSize = parseInt(e.target.value,10);
+    state.page=1;
+    renderAll();
+  });
+  $('btnPrev').addEventListener('click', function(){ if(state.page>1){ state.page--; renderAll(); } });
+  $('btnNext').addEventListener('click', function(){
+    var filtered = getFilteredSorted();
+    var totalPages = Math.max(1, Math.ceil(filtered.length/state.pageSize));
+    if(state.page<totalPages){ state.page++; renderAll(); }
+  });
+
+  // initial
+  setStatus('Waiting for input…','info');
+})();
+</script>
+</body>
+</html>
