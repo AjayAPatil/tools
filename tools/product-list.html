@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f766e">
+<title>Product Lists</title>
+<style>
+:root{
+  --bg:#f4f6f7; --surface:#ffffff; --ink:#18212b; --muted:#6a7683; --line:#e2e7ea;
+  --accent:#0f766e; --accent-ink:#ffffff; --danger:#c0392b; --tab:#e6ecee;
+  --shadow:0 6px 18px rgba(15,40,50,.28);
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --bg:#10161b; --surface:#192229; --ink:#e8eef2; --muted:#8c9aa5; --line:#27333b;
+    --accent:#2bb3a6; --accent-ink:#06201d; --danger:#ef7b6c; --tab:#212c34;
+    --shadow:0 6px 18px rgba(0,0,0,.55);
+  }
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0;background:var(--bg);color:var(--ink);
+  font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right);
+}
+body.lock{overflow:hidden}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer;border:0;background:none;padding:0}
+[hidden]{display:none!important}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* ---------- top bar: only the tab names scroll ---------- */
+.top{
+  position:sticky;top:0;z-index:10;display:flex;align-items:center;gap:4px;
+  background:var(--surface);border-bottom:1px solid var(--line);
+  padding:calc(env(safe-area-inset-top) + 8px) 8px 8px;
+}
+.tabs{
+  flex:1;min-width:0;display:flex;gap:6px;overflow-x:auto;overflow-y:hidden;
+  scrollbar-width:none;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;
+}
+.tabs::-webkit-scrollbar{display:none}
+.tab{
+  flex:none;max-width:60vw;height:40px;padding:0 16px;border-radius:20px;background:var(--tab);
+  color:var(--muted);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.tab.on{background:var(--accent);color:var(--accent-ink)}
+.icon-btn{
+  flex:none;width:40px;height:40px;border-radius:50%;display:grid;place-items:center;color:var(--muted);
+}
+.icon-btn:active{background:var(--tab)}
+.icon-btn svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+#addTab{color:var(--accent)}
+#delTab:not(:disabled){color:var(--danger)}
+#delTab:disabled{opacity:.35}
+
+/* ---------- list ---------- */
+main{max-width:720px;margin:0 auto;padding:0 12px calc(110px + env(safe-area-inset-bottom))}
+.meta{display:flex;justify-content:space-between;gap:8px;padding:14px 4px 8px;color:var(--muted);font-size:14px;min-height:40px}
+#list{list-style:none;margin:0;padding:0;background:var(--surface);border-radius:14px;overflow:hidden}
+#list:empty{display:none}
+.row{
+  display:flex;align-items:center;min-height:56px;border-bottom:1px solid var(--line);
+  content-visibility:auto;contain-intrinsic-size:auto 56px;
+}
+.row:last-child{border-bottom:0}
+.chk{position:relative;flex:none;width:52px;height:56px;display:grid;place-items:center;cursor:pointer}
+.chk input{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;cursor:pointer}
+.box{width:24px;height:24px;border-radius:7px;border:2px solid var(--muted);display:grid;place-items:center}
+.box::after{
+  content:"";width:6px;height:11px;margin-top:-2px;border:solid var(--accent-ink);border-width:0 2.5px 2.5px 0;
+  transform:rotate(45deg) scale(0);transition:transform .12s;
+}
+.chk input:checked + .box{background:var(--accent);border-color:var(--accent)}
+.chk input:checked + .box::after{transform:rotate(45deg) scale(1)}
+.chk input:focus-visible + .box{outline:2px solid var(--accent);outline-offset:2px}
+.txt{flex:1;min-width:0;display:flex;align-items:baseline;gap:10px;text-align:left;padding:10px 0;min-height:56px}
+.nm{overflow-wrap:anywhere}
+.q{flex:none;margin-left:auto;color:var(--muted);font-variant-numeric:tabular-nums;font-size:15px}
+.rm{flex:none;width:48px;height:56px;color:var(--muted);font-size:24px;line-height:1}
+.rm:active{color:var(--danger)}
+.row.done .nm{text-decoration:line-through}
+.row.done .txt{opacity:.5}
+
+.r{display:flex;gap:14px;align-items:center}
+.link{color:var(--accent);font-weight:600;font-size:14px;padding:8px 0}
+.hint{font-size:13px;color:var(--muted);margin:-4px 0 14px!important}
+.msg{text-align:center;color:var(--muted);padding:56px 24px}
+.msg strong{display:block;color:var(--ink);font-size:18px;margin-bottom:6px}
+.btn{
+  height:46px;padding:0 20px;border-radius:12px;font-weight:600;background:var(--tab);
+}
+.btn.primary{background:var(--accent);color:var(--accent-ink)}
+.btn.danger{background:var(--danger);color:#fff}
+.msg .btn{margin-top:16px}
+
+/* ---------- add button ---------- */
+.fab{
+  position:fixed;z-index:20;right:calc(18px + env(safe-area-inset-right));bottom:calc(18px + env(safe-area-inset-bottom));
+  width:60px;height:60px;border-radius:50%;background:var(--accent);color:var(--accent-ink);
+  display:grid;place-items:center;box-shadow:var(--shadow);
+}
+.fab:active{transform:scale(.94)}
+.fab:disabled{opacity:.4}
+.fab svg{width:28px;height:28px;stroke:currentColor;fill:none;stroke-width:2.6;stroke-linecap:round}
+
+/* ---------- popups ---------- */
+.overlay{
+  position:fixed;inset:0;z-index:50;background:rgba(8,16,22,.5);
+  display:flex;align-items:flex-start;justify-content:center;
+  padding:max(12vh,24px) 16px 16px;overflow-y:auto;
+}
+.sheet{
+  width:100%;max-width:420px;background:var(--surface);border-radius:18px;padding:20px;box-shadow:var(--shadow);
+  animation:pop .14s ease-out;
+}
+@keyframes pop{from{transform:translateY(8px);opacity:0}to{transform:none;opacity:1}}
+@media (prefers-reduced-motion:reduce){.sheet{animation:none}.box::after{transition:none}}
+.sheet h2{margin:0 0 14px;font-size:19px}
+.sheet p{margin:0 0 4px;color:var(--muted)}
+label.f{display:block;margin-bottom:14px;font-size:14px;color:var(--muted);font-weight:600}
+label.f input{
+  display:block;width:100%;height:48px;margin-top:6px;padding:0 14px;border-radius:12px;
+  border:1.5px solid var(--line);background:var(--bg);font-size:16px;font-weight:400;color:var(--ink);
+}
+label.f input:focus{outline:none;border-color:var(--accent)}
+.err{color:var(--danger);font-size:14px;margin:-6px 0 10px;min-height:0}
+.actions{display:flex;gap:10px;margin-top:6px}
+.actions .btn{flex:1}
+
+.toast{
+  position:fixed;z-index:60;left:50%;bottom:calc(92px + env(safe-area-inset-bottom));transform:translateX(-50%);
+  max-width:calc(100vw - 32px);background:#1f2a33;color:#fff;border-radius:12px;padding:12px 16px;
+  display:flex;gap:14px;align-items:center;box-shadow:var(--shadow);font-size:15px;
+}
+.toast button{color:#7fe3d8;font-weight:700}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="tabs" id="tabs" role="tablist" aria-label="Lists"></div>
+  <button class="icon-btn" id="addTab" aria-label="Add list">
+    <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+  </button>
+  <button class="icon-btn" id="delTab" aria-label="Delete this list" disabled>
+    <svg viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg>
+  </button>
+</header>
+
+<main>
+  <div class="meta"><span id="count"></span><span class="r"><span id="status" aria-live="polite"></span><button class="link" id="openSet" type="button">Settings</button></span></div>
+  <ul id="list"></ul>
+  <div class="msg" id="msg" hidden></div>
+</main>
+
+<button class="fab" id="fab" aria-label="Add product" disabled>
+  <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+</button>
+
+<!-- Add / edit product -->
+<div class="overlay" id="itemModal" hidden>
+  <form class="sheet" id="itemForm" novalidate>
+    <h2 id="itemTitle">Add product</h2>
+    <label class="f">Product name
+      <input id="fName" type="text" maxlength="100" autocomplete="off" enterkeyhint="done" placeholder="e.g. Milk">
+    </label>
+    <div class="err" id="fErr" hidden>Enter a product name.</div>
+    <label class="f">Quantity
+      <input id="fQty" type="number" inputmode="numeric" min="1" max="999999" step="1" value="1">
+    </label>
+    <div class="actions">
+      <button type="button" class="btn" data-close>Cancel</button>
+      <button type="submit" class="btn primary" id="itemSubmit">Add</button>
+    </div>
+  </form>
+</div>
+
+<!-- Add list -->
+<div class="overlay" id="listModal" hidden>
+  <form class="sheet" id="listForm" novalidate>
+    <h2>New list</h2>
+    <label class="f">List name
+      <input id="lName" type="text" maxlength="40" autocomplete="off" enterkeyhint="done" placeholder="e.g. Groceries">
+    </label>
+    <div class="err" id="lErr" hidden>Enter a list name.</div>
+    <div class="actions">
+      <button type="button" class="btn" data-close>Cancel</button>
+      <button type="submit" class="btn primary">Create list</button>
+    </div>
+  </form>
+</div>
+
+<!-- Confirm delete list -->
+<div class="overlay" id="confirmModal" hidden>
+  <div class="sheet" role="alertdialog" aria-labelledby="cTitle">
+    <h2 id="cTitle">Delete list?</h2>
+    <p id="cText"></p>
+    <div class="actions" style="margin-top:18px">
+      <button type="button" class="btn" data-close>Cancel</button>
+      <button type="button" class="btn danger" id="cOk">Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- GitHub storage settings -->
+<div class="overlay" id="setModal" hidden>
+  <form class="sheet" id="setForm" novalidate>
+    <h2>Connect GitHub storage</h2>
+    <p class="hint">Lists are saved as JSON files in a GitHub repository. Use a private repo just for data. Create a fine-grained token for that one repo with <b>Contents: Read and write</b>. Everything stays on this device.</p>
+    <label class="f">GitHub username
+      <input id="sOwner" type="text" autocomplete="off" autocapitalize="off" spellcheck="false">
+    </label>
+    <label class="f">Repository name
+      <input id="sRepo" type="text" autocomplete="off" autocapitalize="off" spellcheck="false">
+    </label>
+    <label class="f">Branch
+      <input id="sBranch" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" value="main">
+    </label>
+    <label class="f">Access token
+      <input id="sToken" type="password" autocomplete="off" autocapitalize="off" spellcheck="false">
+    </label>
+    <div class="err" id="sErr" hidden></div>
+    <div class="actions">
+      <button type="button" class="btn" data-close>Cancel</button>
+      <button type="submit" class="btn primary" id="sSave">Connect</button>
+    </div>
+  </form>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+
+<script>
+(() => {
+'use strict';
+
+const MAX_LISTS = 100, MAX_ITEMS = 1000;
+const $ = (s) => document.querySelector(s);
+const tabsEl = $('#tabs'), listEl = $('#list'), msgEl = $('#msg');
+const countEl = $('#count'), statusEl = $('#status');
+const fab = $('#fab'), delTab = $('#delTab');
+
+let lists = [];          // [{id, name}]
+let activeId = null;     // highlighted tab
+let cur = null;          // {id, items} – only the open tab's data is in memory
+let loadTok = 0, dirty = false, saveTimer = 0, saving = Promise.resolve();
+
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-3);
+
+/* ---------- storage: JSON files in a GitHub repo ---------- */
+let cfg = null;
+try { cfg = JSON.parse(localStorage.getItem('ghcfg')); } catch {}
+const DIR = 'data/';                 // folder inside the repo
+const shas = new Map();              // file name -> last known blob sha
+let writeQ = Promise.resolve();      // all writes run one by one (GitHub rejects parallel commits)
+const enqueue = (fn) => { const p = writeQ.then(fn); writeQ = p.catch(() => {}); return p; };
+
+const toB64 = (str) => {
+  const b = new TextEncoder().encode(str); let x = '';
+  for (let i = 0; i < b.length; i += 0x8000) x += String.fromCharCode.apply(null, b.subarray(i, i + 0x8000));
+  return btoa(x);
+};
+const fromB64 = (str) => new TextDecoder().decode(Uint8Array.from(atob(str), (c) => c.charCodeAt(0)));
+const hexId = () => Array.from(crypto.getRandomValues(new Uint8Array(6)), (b) => b.toString(16).padStart(2, '0')).join('');
+
+async function ghFetch(method, path, body, keepalive) {
+  if (!cfg) throw new Error('Storage is not set up. Open Settings.');
+  const json = body ? JSON.stringify(body) : undefined;
+  let r;
+  try {
+    r = await fetch(`https://api.github.com/repos/${cfg.owner}/${cfg.repo}/${path}`, {
+      method, cache: 'no-store', keepalive: !!keepalive && json.length < 60000,
+      headers: { Accept: 'application/vnd.github+json', Authorization: 'Bearer ' + cfg.token,
+                 ...(json ? { 'Content-Type': 'application/json' } : {}) },
+      body: json,
+    });
+  } catch { throw new Error('No connection to GitHub'); }
+  if (r.status === 401) throw new Error('Token not accepted. Check Settings.');
+  return r;
+}
+
+async function ghError(r) {
+  let m = 'GitHub error ' + r.status;
+  try { m = (await r.json()).message || m; } catch {}
+  if (r.status === 403) m = 'Access denied. Check the token permissions in Settings.';
+  return new Error(m);
+}
+
+const fileUrl = (name) => `contents/${DIR}${name}`;
+
+async function readFile(name) {
+  const r = await ghFetch('GET', `${fileUrl(name)}?ref=${encodeURIComponent(cfg.branch)}`);
+  if (r.status === 404) { shas.delete(name); return null; }
+  if (!r.ok) throw await ghError(r);
+  const j = await r.json();
+  shas.set(name, j.sha);
+  return JSON.parse(fromB64(j.content));
+}
+
+async function writeFile(name, json, message, keepalive) {
+  const content = toB64(json);
+  for (let attempt = 0; attempt < 2; attempt++) {
+    if (!shas.has(name)) await readFile(name);            // fills the sha if the file exists
+    const body = { message, content, branch: cfg.branch };
+    if (shas.get(name)) body.sha = shas.get(name);
+    const r = await ghFetch('PUT', fileUrl(name), body, keepalive);
+    if (r.ok) { shas.set(name, (await r.json()).content.sha); return; }
+    if (r.status === 409 || r.status === 422) { shas.delete(name); continue; }   // stale sha: refetch, retry
+    throw await ghError(r);
+  }
+  throw new Error('Could not save because the file changed. Try again.');
+}
+
+async function deleteFile(name) {
+  if (!shas.has(name)) await readFile(name);
+  if (!shas.get(name)) return;
+  const r = await ghFetch('DELETE', fileUrl(name), { message: 'Delete list', sha: shas.get(name), branch: cfg.branch });
+  if (!r.ok && r.status !== 404) throw await ghError(r);
+  shas.delete(name);
+}
+
+const store = {
+  lists: async () => (await readFile('index.json')) || [],
+  items: async (id) => (await readFile(`list_${id}.json`)) || [],
+  save: (id, json, keepalive) => enqueue(() => writeFile(`list_${id}.json`, json, 'Update list', keepalive)),
+  create: (name) => enqueue(async () => {
+    const idx = (await readFile('index.json')) || [];
+    if (idx.length >= MAX_LISTS) throw new Error(`Maximum ${MAX_LISTS} lists allowed`);
+    const l = { id: hexId(), name };
+    await writeFile(`list_${l.id}.json`, '[]', 'Create list');
+    idx.push(l);
+    await writeFile('index.json', JSON.stringify(idx), 'Add list');
+    return l;
+  }),
+  remove: (id) => enqueue(async () => {
+    const idx = (await readFile('index.json')) || [];
+    await writeFile('index.json', JSON.stringify(idx.filter((l) => l.id !== id)), 'Remove list');
+    await deleteFile(`list_${id}.json`);
+  }),
+};
+
+/* ---------- saving (debounced, one request at a time) ---------- */
+function setStatus(t) { statusEl.textContent = t; }
+
+function scheduleSave() {
+  dirty = true;
+  setStatus('Saving…');
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => flush(), 400);
+}
+
+function flush(keepalive) {
+  clearTimeout(saveTimer);
+  if (!dirty || !cur) return saving;
+  dirty = false;
+  const id = cur.id, body = JSON.stringify(cur.items);
+  saving = saving
+    .then(() => store.save(id, body, keepalive))
+    .then(() => { if (!dirty) setStatus('Saved'); })
+    .catch(() => {
+      setStatus('Not saved – retrying');
+      if (cur && cur.id === id) { dirty = true; saveTimer = setTimeout(() => flush(), 3000); }
+    });
+  return saving;
+}
+
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flush(true); });
+addEventListener('pagehide', () => flush(true));
+
+/* ---------- small UI helpers ---------- */
+let toastTimer = 0;
+function toast(text, actionLabel, onAction) {
+  const t = $('#toast');
+  t.innerHTML = '<span></span>' + (actionLabel ? '<button type="button"></button>' : '');
+  t.firstChild.textContent = text;
+  if (actionLabel) t.lastChild.textContent = actionLabel;
+  t.hidden = false;
+  t.onclick = (e) => { if (e.target.tagName === 'BUTTON') { onAction(); t.hidden = true; } };
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => (t.hidden = true), actionLabel ? 5000 : 3000);
+}
+
+function openModal(el) { el.hidden = false; document.body.classList.add('lock'); }
+function closeModal(el) {
+  el.hidden = true;
+  if (!document.querySelector('.overlay:not([hidden])')) document.body.classList.remove('lock');
+}
+document.querySelectorAll('.overlay').forEach((o) => {
+  o.addEventListener('mousedown', (e) => { if (e.target === o) closeModal(o); });
+  o.addEventListener('click', (e) => { if (e.target.closest('[data-close]')) closeModal(o); });
+});
+addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') document.querySelectorAll('.overlay:not([hidden])').forEach(closeModal);
+});
+
+/* ---------- tabs ---------- */
+function renderTabs() {
+  tabsEl.innerHTML = lists.map((l) =>
+    `<button class="tab${l.id === activeId ? ' on' : ''}" role="tab" aria-selected="${l.id === activeId}" data-id="${l.id}">${esc(l.name)}</button>`
+  ).join('');
+  const on = tabsEl.querySelector('.on');
+  if (on) on.scrollIntoView({ inline: 'center', block: 'nearest' });
+  delTab.disabled = !activeId;
+}
+
+tabsEl.addEventListener('click', (e) => {
+  const b = e.target.closest('.tab');
+  if (b) selectList(b.dataset.id);
+});
+
+async function selectList(id) {
+  if (id === activeId && cur) return;
+  await flush();
+  const tok = ++loadTok;
+  activeId = id; cur = null;
+  try { localStorage.setItem('lastList', id); } catch {}
+  renderTabs();
+  listEl.innerHTML = '';
+  countEl.textContent = ''; setStatus('');
+  fab.disabled = true;
+  showMsg('Loading…');
+  try {
+    const items = await store.items(id);
+    if (tok !== loadTok) return;
+    cur = { id, items };
+    fab.disabled = false;
+    renderItems();
+  } catch (err) {
+    if (tok !== loadTok) return;
+    showMsg('<strong>Could not load this list</strong>' + esc(err.message) +
+      '<br><button class="btn primary" id="retry" type="button">Try again</button>');
+    $('#retry').onclick = () => { activeId = null; selectList(id); };
+  }
+}
+
+/* ---------- list rendering ---------- */
+function showMsg(html) { msgEl.innerHTML = html; msgEl.hidden = false; }
+
+const rowHTML = (it) =>
+  `<li class="row${it.done ? ' done' : ''}" data-id="${esc(it.id)}">` +
+  `<label class="chk"><input type="checkbox"${it.done ? ' checked' : ''} aria-label="Done"><span class="box"></span></label>` +
+  `<button class="txt" type="button"><span class="nm">${esc(it.name)}</span><span class="q">×${it.qty}</span></button>` +
+  `<button class="rm" type="button" aria-label="Remove ${esc(it.name)}">×</button></li>`;
+
+function renderItems() {
+  const items = cur.items;
+  listEl.innerHTML = items.map(rowHTML).join('');
+  updateMeta();
+}
+
+function updateMeta() {
+  const items = cur.items;
+  let done = 0;
+  for (let i = 0; i < items.length; i++) if (items[i].done) done++;
+  countEl.textContent = items.length ? `${done} of ${items.length} done` : '';
+  if (items.length) msgEl.hidden = true;
+  else showMsg('<strong>No products yet</strong>Tap the + button to add the first one.');
+}
+
+/* ---------- item actions (event delegation: 3 listeners for 1000 rows) ---------- */
+const find = (id) => cur.items.findIndex((x) => x.id === id);
+
+listEl.addEventListener('change', (e) => {
+  if (e.target.type !== 'checkbox' || !cur) return;
+  const li = e.target.closest('.row');
+  const items = cur.items, i = find(li.dataset.id);
+  if (i < 0) return;
+  const it = items.splice(i, 1)[0];
+  it.done = e.target.checked;
+  // checked -> end of list; unchecked -> end of the unchecked group
+  let pos = items.length;
+  if (!it.done) { const f = items.findIndex((x) => x.done); if (f >= 0) pos = f; }
+  items.splice(pos, 0, it);
+  li.classList.toggle('done', it.done);
+  li.remove();
+  listEl.insertBefore(li, listEl.children[pos] || null);
+  updateMeta();
+  scheduleSave();
+});
+
+listEl.addEventListener('click', (e) => {
+  if (!cur) return;
+  const li = e.target.closest('.row');
+  if (!li) return;
+  if (e.target.closest('.rm')) removeItem(li);
+  else if (e.target.closest('.txt')) openItemModal(li.dataset.id);
+});
+
+function removeItem(li) {
+  const i = find(li.dataset.id);
+  if (i < 0) return;
+  const it = cur.items.splice(i, 1)[0];
+  const listId = cur.id;
+  li.remove();
+  updateMeta(); scheduleSave();
+  toast('Removed “' + it.name + '”', 'Undo', () => {
+    if (!cur || cur.id !== listId) return;
+    cur.items.splice(Math.min(i, cur.items.length), 0, it);
+    renderItems(); scheduleSave();
+  });
+}
+
+/* ---------- add / edit product popup ---------- */
+const itemModal = $('#itemModal'), fName = $('#fName'), fQty = $('#fQty'), fErr = $('#fErr');
+let editId = null;
+
+function openItemModal(id) {
+  editId = id || null;
+  const it = id ? cur.items[find(id)] : null;
+  $('#itemTitle').textContent = it ? 'Edit product' : 'Add product';
+  $('#itemSubmit').textContent = it ? 'Save' : 'Add';
+  fName.value = it ? it.name : '';
+  fQty.value = it ? it.qty : 1;
+  fErr.hidden = true;
+  openModal(itemModal);
+  setTimeout(() => { fName.focus(); fName.select(); }, 30);
+}
+
+fab.addEventListener('click', () => {
+  if (cur.items.length >= MAX_ITEMS) return toast(`Maximum ${MAX_ITEMS} products per list`);
+  openItemModal();
+});
+
+fName.addEventListener('input', () => { fErr.hidden = true; });
+
+$('#itemForm').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const name = fName.value.trim();
+  if (!name) { fErr.hidden = false; fName.focus(); return; }
+  let qty = parseInt(fQty.value, 10);
+  if (!(qty >= 1)) qty = 1;
+  if (qty > 999999) qty = 999999;
+
+  if (editId) {
+    const it = cur.items[find(editId)];
+    if (it) {
+      it.name = name; it.qty = qty;
+      const li = listEl.querySelector(`[data-id="${CSS.escape(editId)}"]`);
+      if (li) {
+        li.querySelector('.nm').textContent = name;
+        li.querySelector('.q').textContent = '×' + qty;
+        li.querySelector('.rm').setAttribute('aria-label', 'Remove ' + name);
+      }
+    }
+  } else {
+    if (cur.items.length >= MAX_ITEMS) return toast(`Maximum ${MAX_ITEMS} products per list`);
+    const it = { id: uid(), name, qty, done: false };
+    cur.items.unshift(it);                       // new products appear at the top
+    listEl.insertAdjacentHTML('afterbegin', rowHTML(it));
+    scrollTo({ top: 0 });
+  }
+  closeModal(itemModal);
+  updateMeta(); scheduleSave();
+});
+
+/* ---------- add list ---------- */
+const listModal = $('#listModal'), lName = $('#lName'), lErr = $('#lErr');
+
+function openListModal() {
+  if (lists.length >= MAX_LISTS) return toast(`Maximum ${MAX_LISTS} lists allowed`);
+  lName.value = ''; lErr.hidden = true;
+  openModal(listModal);
+  setTimeout(() => lName.focus(), 30);
+}
+$('#addTab').addEventListener('click', openListModal);
+lName.addEventListener('input', () => { lErr.hidden = true; });
+
+$('#listForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const name = lName.value.trim();
+  if (!name) { lErr.hidden = false; lName.focus(); return; }
+  closeModal(listModal);
+  try {
+    const l = await store.create(name);
+    lists.push(l);
+    await selectList(l.id);
+    renderTabs();
+  } catch (err) { toast(err.message); }
+});
+
+/* ---------- delete list (needs confirmation) ---------- */
+delTab.addEventListener('click', () => {
+  const l = lists.find((x) => x.id === activeId);
+  if (!l) return;
+  $('#cText').textContent = `“${l.name}” and all its products will be permanently deleted.`;
+  openModal($('#confirmModal'));
+});
+
+$('#cOk').addEventListener('click', async () => {
+  closeModal($('#confirmModal'));
+  const id = activeId;
+  const idx = lists.findIndex((x) => x.id === id);
+  if (idx < 0) return;
+  clearTimeout(saveTimer); dirty = false; ++loadTok; cur = null;
+  try {
+    await saving;
+    await store.remove(id);
+  } catch (err) { toast(err.message); }
+  lists.splice(idx, 1);
+  activeId = null;
+  const next = lists[Math.min(idx, lists.length - 1)];
+  if (next) selectList(next.id); else showEmptyApp();
+});
+
+/* ---------- start ---------- */
+function showEmptyApp() {
+  activeId = null; cur = null;
+  renderTabs();
+  listEl.innerHTML = ''; countEl.textContent = ''; setStatus('');
+  fab.disabled = true;
+  showMsg('<strong>No lists yet</strong>Create a list to start adding products.' +
+    '<br><button class="btn primary" id="firstList" type="button">Create list</button>');
+  $('#firstList').onclick = openListModal;
+}
+
+/* ---------- settings ---------- */
+const setModal = $('#setModal'), sErr = $('#sErr');
+function openSettings() {
+  $('#sOwner').value = cfg ? cfg.owner : '';
+  $('#sRepo').value = cfg ? cfg.repo : '';
+  $('#sBranch').value = cfg ? cfg.branch : 'main';
+  $('#sToken').value = cfg ? cfg.token : '';
+  sErr.hidden = true;
+  openModal(setModal);
+}
+$('#openSet').addEventListener('click', openSettings);
+
+$('#setForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const next = { owner: $('#sOwner').value.trim(), repo: $('#sRepo').value.trim(),
+                 branch: $('#sBranch').value.trim() || 'main', token: $('#sToken').value.trim() };
+  if (!next.owner || !next.repo || !next.token) { sErr.textContent = 'Fill in username, repository and token.'; sErr.hidden = false; return; }
+  const prev = cfg, btn = $('#sSave');
+  btn.disabled = true; btn.textContent = 'Checking…';
+  cfg = next;
+  try {
+    const r = await ghFetch('GET', 'branches/' + encodeURIComponent(next.branch));
+    if (!r.ok) throw new Error(r.status === 404 ? 'Repository or branch not found. Make sure the repo has at least one file.' : (await ghError(r)).message);
+    localStorage.setItem('ghcfg', JSON.stringify(next));
+    shas.clear(); lists = []; activeId = null; cur = null; dirty = false; ++loadTok;
+    closeModal(setModal);
+    init();
+  } catch (err) {
+    cfg = prev;
+    sErr.textContent = err.message; sErr.hidden = false;
+  } finally { btn.disabled = false; btn.textContent = 'Connect'; }
+});
+
+async function init() {
+  if (!cfg) {
+    activeId = null; cur = null; renderTabs(); listEl.innerHTML = ''; fab.disabled = true;
+    showMsg('<strong>Connect GitHub storage</strong>Your lists are saved in a GitHub repository.' +
+      '<br><button class="btn primary" id="setup" type="button">Set up</button>');
+    $('#setup').onclick = openSettings;
+    openSettings();
+    return;
+  }
+  showMsg('Loading…');
+  try {
+    lists = await store.lists();
+  } catch (err) {
+    showMsg('<strong>Could not load your lists</strong>' + esc(err.message) +
+      '<br><button class="btn primary" id="retry" type="button">Try again</button>');
+    $('#retry').onclick = init;
+    return;
+  }
+  let last = null;
+  try { last = localStorage.getItem('lastList'); } catch {}
+  const first = lists.find((l) => l.id === last) || lists[0];
+  if (first) selectList(first.id); else showEmptyApp();
+}
+init();
+})();
+</script>
+</body>
+</html>
